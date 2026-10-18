@@ -1,6 +1,6 @@
 # Pet Rescue: Borrow & Escape
 
-Status: planning brief, 18 October 2026. Working title; gameplay is proposed, not implemented or tested. Rendering engine: three.js (see Graphics engine and size budget); art direction remains unspecified.
+Status: brief, 18 October 2026, with a first playable build (see the README). Working title. The build has automated rule, level and browser tests only: no player testing, real-device measurement, upload or certification. Rendering engine: three.js (see Graphics engine and size budget).
 
 ## Product promise
 
@@ -75,7 +75,7 @@ Asset and startup rules:
 - The game must adapt to portrait, landscape and arbitrary aspect ratios.
 - The store cover/thumbnail is a separately uploaded image and may be an offline high-quality render of the same models.
 
-These are planning budgets. No build, measured bundle, frame rate or certification result exists yet.
+First build, measured 18 October 2026: about 157 KB gzipped in total, because models are generated from primitives and sounds are synthesized. Frame rate on real phones and certification have not been measured.
 
 Sources:
 - https://developers.google.com/youtube/gaming/playables/certification/requirements_stability
@@ -96,4 +96,21 @@ The main risk is selection friction: too many capabilities, unclear affordances 
 
 ## Implementation boundary
 
-This upload contains planning documents only. A full implementation contract must settle mechanics, content/exhaustion, progression, exact ad rules, host lifecycle, cloud saving, localization, performance budgets and acceptance evidence. Preserve user-approved decisions, including three.js as the rendering engine; art direction remains unspecified.
+The first build implements the core loop with four companions (puppy push, frog hop, duck swim, mole dig), 12 levels and eight further friends to rescue. It also includes the Playables lifecycle, saving and textless guidance. Automated tests prove that:
+
+- every level is solvable with the companions available when it is first played;
+- each introduction level needs its new ability for the escape;
+- every later level needs at least two companions.
+
+Levels 8 and 11 can be made unwinnable; undo and restart recover them.
+
+Still open:
+
+- an ad policy, so no ads are implemented;
+- localization beyond failure messages in five languages;
+- real-device performance;
+- the human acceptance checks in [TEXTLESS_GAMEPLAY.md](TEXTLESS_GAMEPLAY.md);
+- more content;
+- upload and certification.
+
+Preserve user-approved decisions, including three.js as the rendering engine.

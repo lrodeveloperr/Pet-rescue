@@ -1,6 +1,6 @@
 # Textless core gameplay
 
-Applies to Pet Rescue: Borrow & Escape. This is a product requirement for the planned game, not a report of a completed implementation.
+Applies to Pet Rescue: Borrow & Escape. This is a product requirement; the evidence section below records what the first build has and has not shown.
 
 ## Required player experience
 
@@ -33,4 +33,28 @@ Never hide reward conditions behind an unexplained symbol. Optional rewarded off
 | Ad declined or unavailable | Ordinary progression remains usable and no reward is granted unless verified. |
 | Failure and recovery | A clear localized explanation and usable recovery remain available where a symbol alone is insufficient. |
 
-These are planned acceptance checks. No executable tests or successful usability results are included in this upload.
+These are acceptance checks. The tester rows need real players and have not been run.
+
+## Evidence from the first build
+
+Automated, in `npm run smoke` (headless Chromium, production build):
+
+- A tutorial hand is shown on level 1.
+- Real taps walk to the cage, rescue the puppy and reach home.
+- A swipe on the canvas takes one step.
+- Undo reverts a move.
+- All 12 levels are completed through the game controller.
+- Progress survives a reload.
+- A blocked move shows a symbol bubble.
+- An unwinnable position highlights undo and restart.
+- No page errors occur.
+
+Implementation, not yet player-tested:
+
+- The core loop shows no text.
+- States use shape and motion cues as well as colour: dashed outlines and locks for unavailable companions, a raised button with a pointer for the active one, pulsing rings for usable targets, crosses for blocked moves.
+- All input works with one pointer.
+- The game is fully playable muted.
+- Buttons have accessible names.
+- Failure messages are localized in en, es, pt, fr and de.
+- The ad row does not apply yet, because no ads are implemented.
