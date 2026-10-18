@@ -4,6 +4,8 @@
 
 - [Game brief](docs/PET_RESCUE_BRIEF.md)
 - [Textless gameplay requirements](docs/TEXTLESS_GAMEPLAY.md)
+- [Engagement and ad revenue research](reports/Puzzle%20game%20engagement%20and%20ad%20revenue.md) (sources in `research_notes/`)
+- [Engagement and revenue audit](docs/AUDIT_ENGAGEMENT_AND_REVENUE.md): 49 prioritized improvements
 
 Rescue a caged pet, then lead it home. Each rescued companion lends one ability while it leads: the puppy pushes boulders (into ponds and gaps to make crossings), the frog hops one-tile gaps, the duck swims, and the mole digs through hedges. You cannot switch companion while swimming, which drives the later puzzles.
 
