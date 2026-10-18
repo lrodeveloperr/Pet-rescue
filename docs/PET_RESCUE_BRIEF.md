@@ -1,6 +1,6 @@
 # Pet Rescue: Borrow & Escape
 
-Status: planning brief, 18 October 2026. Working title; gameplay is proposed, not implemented or tested. Graphics are intentionally unspecified.
+Status: planning brief, 18 October 2026. Working title; gameplay is proposed, not implemented or tested. Rendering engine: three.js (see Graphics engine and size budget); art direction remains unspecified.
 
 ## Product promise
 
@@ -42,6 +42,46 @@ The full escape and reunion/capability reveal precede any eligible next-round in
 
 First/subsequent cadence, active-time gates and reward entitlements are not finalized in this brief. Do not import Toybox or Haircut thresholds automatically or implement monetization changes without authorization. No banners. Ordinary play must remain usable after cancellation, error or no fill. Never grant an unverified reward or stack rewarded followed by an interstitial.
 
+## Graphics engine and size budget
+
+Use **three.js** for real-time 3D. The requirement is good-enough 3D with minimal startup time. In a minimal measured scene (WebGL renderer, camera, lights, mesh and glTF loader; esbuild-minified, gzip -9, 18 October 2026), three.js 0.186.1 compressed to about 151 KB, against about 503 KB for PlayCanvas 2.23.3 and about 645 KB for tree-shaken Babylon.js 9.31.0. three.js needs no WebAssembly compilation or separate runtime boot before the first frame. Unity and Godot 4 web exports were not measured; their WebAssembly runtimes typically cost several MiB and start more slowly on phones. PlayCanvas is the fallback if an editor-based art workflow becomes necessary.
+
+YouTube Playables limits, as reported in Google's certification pages (re-confirm before build, because revisions have changed them):
+
+| Limit | Value |
+|---|---|
+| Initial bundle (bytes downloaded until `gameReady`, after HTTP compression) | Must be under 30 MiB; target under 15 MiB |
+| Total bundle | 250 MiB |
+| Any single file | Under 30 MiB |
+| Saved game data | Under 3 MiB |
+| JavaScript heap | 512 MB |
+
+Proposed initial-bundle budget, within the 15 MiB target:
+
+| Item | Budget |
+|---|---|
+| Engine and game code | 1–2 MiB |
+| Models and textures for the menu and first rescue | 4–6 MiB |
+| Audio needed at start | 2–3 MiB |
+| Remaining headroom | at least 4 MiB |
+
+Asset and startup rules:
+
+- Models: glTF/GLB with Meshopt or Draco compression; low-poly stylised pets, roughly 3–8k triangles each.
+- Textures: KTX2/Basis, so they stay compressed in GPU memory as well as in transfer.
+- Lighting: baked lighting and ambient occlusion; at most one inexpensive real-time shadow, or blob shadows.
+- Shaders: compile during loading so the first interaction does not stutter.
+- Loading: fetch only the menu and first rescue before `gameReady`; stream later rescues afterwards.
+- The game must adapt to portrait, landscape and arbitrary aspect ratios.
+- The store cover/thumbnail is a separately uploaded image and may be an offline high-quality render of the same models.
+
+These are planning budgets. No build, measured bundle, frame rate or certification result exists yet.
+
+Sources:
+- https://developers.google.com/youtube/gaming/playables/certification/requirements_stability
+- https://developers.google.com/youtube/gaming/playables/certification/revisionhistory
+- https://developers.google.com/youtube/gaming/playables/support/faq
+
 ## Evidence and limits
 
 The 7–17 October 2026 retained Playables comparison recorded approximately 480K nominal incremental plays/day for The Egg Stealing Master and 460K/day for Shift Shapes Car. Those are rounded incumbent counter differences, not forecasts for this product. Existing pet-collection and form-switching games corroborate the component motivations; they do not prove the borrowed-ability combination will succeed.
@@ -56,4 +96,4 @@ The main risk is selection friction: too many capabilities, unclear affordances 
 
 ## Implementation boundary
 
-This upload contains planning documents only. A full implementation contract must settle mechanics, content/exhaustion, progression, exact ad rules, host lifecycle, cloud saving, localization, performance budgets and acceptance evidence. Preserve user-approved decisions and leave graphics unspecified.
+This upload contains planning documents only. A full implementation contract must settle mechanics, content/exhaustion, progression, exact ad rules, host lifecycle, cloud saving, localization, performance budgets and acceptance evidence. Preserve user-approved decisions, including three.js as the rendering engine; art direction remains unspecified.
