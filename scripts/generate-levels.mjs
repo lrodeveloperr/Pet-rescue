@@ -1,12 +1,14 @@
 // Generates the campaign and the daily-puzzle pool (version 2), using every CPU core.
 //   node scripts/generate-levels.mjs        (writes src/levels/campaign.js; about an hour on 4 cores)
+//   node scripts/generate-levels.mjs --more (worlds 7-100 into src/levels/worlds/, one file per world;
+//                                            resumable: worlds already written are kept)
 // Each world is built from 10-level segments. A segment either introduces the world's mechanic
 // (opening with two forced lesson levels) or combines it with an earlier mechanic, so something
 // new arrives about every ten levels. Within a segment, levels rise to a short spike, then a
 // breather. See scripts/levelgen/core.mjs for the per-level filters.
 import { Worker, isMainThread, parentPort, workerData } from 'node:worker_threads';
 import { cpus } from 'node:os';
-import { writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { rng, segmentSpec, candidate, pickFeatured, evaluate, strip, canonical } from './levelgen/core.mjs';
 
 const LESSON = { size: [4, 5], minMoves: 6, maxMoves: 16, maxDead: 0.05, lesson: true, minDetour: 0, minNeeds: 0, maxNeeds: 1 };
@@ -33,7 +35,8 @@ const WORLD_PLAN = {
 };
 const WORLD_ORDER = ['meadow', 'river', 'snow', 'farm', 'canyon', 'woods'];
 const WORLD_LESSON = { river: 'lesson-current', snow: 'lesson-ice', farm: 'lesson-gate', canyon: 'lesson-bridge', woods: 'lesson-burrow' };
-const MINUTES = Number(process.env.GEN_MINUTES || 4);
+const MORE = process.argv.includes('--more');
+const MINUTES = Number(process.env.GEN_MINUTES || (MORE ? 2 : 4));
 const DAILY_TARGET = Number(process.env.DAILY_TARGET || 400);
 
 const specOf = (s) => segmentSpec(typeof s === 'string' ? SPECS[s] : s);
@@ -64,26 +67,43 @@ if (!isMainThread) {
   const seen = new Set();
   let seedBase = 1;
 
-  /** Generates up to `want` unique levels for a list of specs within `minutes`. */
+  /**
+   * Generates up to `want` unique levels for a list of specs within `minutes`.
+   * The first run gives each worker an equal share. With --more the workers share one quota and
+   * all stop as soon as it is met, so one unlucky worker cannot hold up the others.
+   */
   async function generate(spec, want, minutes = MINUTES) {
     const results = [];
     const deadline = Date.now() + minutes * 60000;
-    const per = Math.ceil(want / threads);
-    await Promise.all(
-      Array.from({ length: threads }, () =>
-        new Promise((resolve, reject) => {
-          const w = new Worker(new URL(import.meta.url), { workerData: { spec: Array.isArray(spec) ? spec : [spec], seed: (seedBase += 7919), want: per, deadline } });
-          w.on('message', (m) => {
-            if (m.done) return resolve();
-            const c = canonical(m.def.map);
-            if (seen.has(c)) return;
-            seen.add(c);
-            results.push(m);
-          });
-          w.on('error', reject);
-        }),
-      ),
-    );
+    const per = MORE ? want : Math.ceil(want / threads);
+    const workers = [];
+    await new Promise((resolve, reject) => {
+      let running = threads;
+      let finished = false;
+      const finish = () => {
+        if (finished) return;
+        finished = true;
+        for (const w of workers) w.terminate();
+        resolve();
+      };
+      for (let k = 0; k < threads; k++) {
+        const w = new Worker(new URL(import.meta.url), { workerData: { spec: Array.isArray(spec) ? spec : [spec], seed: (seedBase += 7919), want: per, deadline } });
+        workers.push(w);
+        w.on('message', (m) => {
+          if (finished) return;
+          if (m.done) {
+            if (--running === 0) finish();
+            return;
+          }
+          const c = canonical(m.def.map);
+          if (seen.has(c)) return;
+          seen.add(c);
+          results.push(m);
+          if (MORE && results.length >= want) finish();
+        });
+        w.on('error', reject);
+      }
+    });
     return results.sort((a, b) => a.difficulty - b.difficulty);
   }
 
@@ -117,7 +137,7 @@ if (!isMainThread) {
   }
 
   async function segment(spec, slots, label) {
-    let pool = await generate(spec, Math.ceil(slots * 1.6) + 2);
+    let pool = await generate(spec, MORE ? slots + 3 : Math.ceil(slots * 1.6) + 2);
     if (pool.length < slots && typeof spec === 'object' && spec.fallback) {
       console.log(`  ${label}: ${pool.length}/${slots}, relaxing to ${spec.fallback}`);
       pool = [...pool, ...(await generate({ ...spec, requireMechanics: spec.fallback }, slots - pool.length + 2))].sort((a, b) => a.difficulty - b.difficulty);
@@ -153,6 +173,82 @@ if (!isMainThread) {
   });
   const strip2 = (e) => ({ map: e.def.map, ...(e.def.bees ? { bees: e.def.bees } : {}), par: e.def.par, ...meta(e) });
 
+  /**
+   * Worlds 7-100: each cycles through the six themes and mixes the theme's mechanic with others,
+   * on boards and companion needs that grow chapter by chapter. One file per world, so a long
+   * run can stop and resume, and the game can load each world only when it is needed.
+   */
+  async function generateMore() {
+    const { WORLDS: FIRST, DAILY: POOL } = await import('../src/levels/campaign.js');
+    for (const d of [...FIRST.flatMap((w) => w.levels), ...POOL]) seen.add(canonical(d.map));
+    const dir = new URL('../src/levels/worlds/', import.meta.url);
+    mkdirSync(dir, { recursive: true });
+    const THEME_MECH = { meadow: null, river: 'current', snow: 'ice', farm: 'gate', canyon: 'bridge', woods: 'burrow' };
+    const ALL = ['current', 'ice', 'gate', 'bridge', 'burrow', 'bees'];
+    const last = Number(process.env.GEN_LAST || 100);
+    // Mixes already met in worlds 1-6; a later world announces only mixes that are new.
+    const met = new Set(['bees', 'current', 'ice', 'gate', 'bridge', 'burrow']);
+    for (const plan of Object.values(WORLD_PLAN)) for (const sp of plan) met.add([...sp.mechanics].sort().join('+'));
+    const index = [];
+    const writeIndex = () =>
+      writeFileSync(
+        new URL('index.js', dir),
+        `// Generated by scripts/generate-levels.mjs --more. Do not edit by hand.\n` +
+          `// Worlds 7 onward, one file each, loaded only when the game needs them.\n` +
+          `export const MORE_WORLDS = ${JSON.stringify(index.map(({ key, theme, count }) => ({ key, theme, count })))};\n` +
+          `export const LOADERS = {\n${index.map(({ key }) => `  ${key}: () => import('./${key}.js'),`).join('\n')}\n};\n`,
+      );
+    for (let w = 7; w <= last; w++) {
+      const key = `w${String(w).padStart(3, '0')}`;
+      const theme = WORLD_ORDER[(w - 1) % 6];
+      const file = new URL(`${key}.js`, dir);
+      if (existsSync(file)) {
+        const { WORLD } = await import(file.href);
+        for (const l of WORLD.levels) seen.add(canonical(l.map));
+        for (const l of WORLD.levels) if (l.intro) met.add([...l.intro].sort().join('+'));
+        index.push({ key, theme, count: WORLD.levels.length });
+        continue;
+      }
+      const started = Date.now();
+      // Seeds of their own for each world, so no world replays another world's candidates
+      // (or the first run's), and a resumed run starts where it would have.
+      seedBase = Math.imul(w, 2654435761) >>> 0;
+      const chapter = Math.floor((w - 1) / 6);
+      const T = THEME_MECH[theme];
+      const others = ALL.filter((m) => m !== T && (T || m !== 'bees'));
+      const pick = (k) => others[(w * 7 + k * 3) % others.length];
+      const base = { size: chapter < 3 ? [5, 7] : [5, 8], maxMoves: 28 + Math.min(4, chapter >> 2), maxDead: theme === 'canyon' ? 0.3 : 0.2 };
+      const hi = chapter < 2 ? 2 : 3;
+      const mix = (ms, extra = {}) => ({ ...base, mechanics: ms, requireMechanics: ms, fallback: [ms[0]], ...extra });
+      const plan = T
+        ? [mix([T], { minNeeds: 2, maxNeeds: hi }), mix([T, pick(0)]), mix([T], { size: [5, 7] }), mix([T, pick(1)], { minNeeds: 2, maxNeeds: hi }), mix([T, pick(2)])]
+        : [
+            { ...base, mechanics: [], minNeeds: 2, maxNeeds: 2 },
+            mix([pick(0), 'bees']),
+            { ...base, mechanics: [], minNeeds: 2, maxNeeds: hi, minMoves: 12 },
+            mix([pick(1), pick(2)]),
+            { ...base, mechanics: ['bees'], minNeeds: 2, maxNeeds: hi },
+          ];
+      const friends = WORLD_FRIENDS[(w - 1) % 6];
+      const slots = [];
+      for (const [k, spec] of plan.entries()) {
+        const seg = await segment(spec, 10, `${key}-${k + 1}`);
+        const combo = [...spec.mechanics].sort().join('+');
+        const intro = spec.mechanics.length && !met.has(combo) ? spec.mechanics : null;
+        if (intro) met.add(combo);
+        seg.chosen.map(strip2).forEach((l, n) => slots.push({ ...l, ...(n === 0 && intro ? { intro } : {}) }));
+      }
+      const levels = slots.map((l, k) => ({ id: `${key}-${k + 1}`, pet: friends[k % friends.length], ...l }));
+      writeFileSync(file, `// Generated by scripts/generate-levels.mjs --more. Do not edit by hand.\nexport const WORLD = ${JSON.stringify({ key, theme, levels })};\n`);
+      index.push({ key, theme, count: levels.length });
+      writeIndex();
+      console.log(`${key} (${theme}): ${levels.length} levels in ${Math.round((Date.now() - started) / 1000)} s`);
+    }
+    writeIndex();
+  }
+
+  if (MORE) await generateMore();
+  else {
   const worlds = [];
   let leftovers = [];
   for (const [wi, world] of WORLD_ORDER.entries()) {
@@ -227,4 +323,5 @@ if (!isMainThread) {
     `export const DAILY = ${JSON.stringify(daily)};\n`;
   writeFileSync(process.env.GEN_OUT || new URL('../src/levels/campaign.js', import.meta.url), out);
   console.log(`wrote ${worlds.reduce((a, w) => a + w.levels.length, 0)} campaign levels and ${daily.length} daily puzzles`);
+  }
 }

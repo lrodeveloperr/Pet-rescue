@@ -384,7 +384,7 @@ export class Interface {
         el(
           'div',
           { class: 'world-banner', role: 'img', 'aria-label': t('worldDone') },
-          `<span class="world-done-icon">${WORLD_ICONS[d.key]}<i class="badge ok">${UI.done}</i></span><span class="world-stars">${UI.star}<b>${d.stars}/${d.max}</b></span>` +
+          `<span class="world-done-icon">${WORLD_ICONS[d.key]}<b class="wnum">${d.number}</b><i class="badge ok">${UI.done}</i></span><span class="world-stars">${UI.star}<b>${d.stars}/${d.max}</b></span>` +
             (d.next ? `<span class="arrow">${UI.arrow}</span><span class="world-next">${WORLD_ICONS[d.next]}<i class="sparkle">${UI.sparkle}</i></span>` : ''),
         ),
       );
@@ -523,12 +523,14 @@ export class Interface {
     }
     card.append(extras);
 
+    // A scrolling strip of worlds: every open world, then a few locked ones as a preview.
     const tabs = el('div', { class: 'tabs', role: 'tablist' });
-    worlds.forEach((w, i) => {
+    const lastOpen = worlds.reduce((a, w, i) => (w.locked ? a : i), 0);
+    worlds.slice(0, Math.max(6, lastOpen + 4)).forEach((w, i) => {
       const tab = el(
         'button',
         { class: `tab ${i === world ? 'on' : ''} ${w.locked ? 'locked' : ''}`, type: 'button', role: 'tab', 'aria-selected': String(i === world), 'aria-label': `${t('world')} ${i + 1}: ${t(`w_${w.key}`)}` },
-        `${WORLD_ICONS[w.key]}${w.locked ? `<i class="badge">${UI.lock}</i>` : `<i class="meter"><b style="width:${Math.round((w.stars / w.max) * 100)}%"></b></i>`}`,
+        `${WORLD_ICONS[w.key]}<b class="wnum">${i + 1}</b>${w.locked ? `<i class="badge">${UI.lock}</i>` : `<i class="meter"><b style="width:${Math.round((w.stars / w.max) * 100)}%"></b></i>`}`,
       );
       if (w.locked) tab.disabled = true;
       else onPress(tab, () => this.h.onWorld(i));
@@ -557,6 +559,8 @@ export class Interface {
     // Bring the current or next level into view.
     const target = grid.querySelector('.current') ?? [...grid.querySelectorAll('.node:not(.locked)')].pop();
     target?.scrollIntoView({ block: 'center' });
+    const tab = tabs.querySelector('.tab.on');
+    if (tab) tabs.scrollLeft = tab.offsetLeft - tabs.clientWidth / 2 + tab.clientWidth / 2;
   }
 
   /** The last four weeks of dailies: solved, frozen or missed, with streak, best and freezes. */

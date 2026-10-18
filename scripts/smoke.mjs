@@ -231,12 +231,21 @@ try {
   await page.click('.overlay.intro .btn', { force: true });
   check(await page.evaluate(() => !window.__petRescue.game.menuPaused && window.__petRescue.world.targetRings.length > 0), 'closing the intro card points at the new element');
 
-  // ---------- every world: first, middle and last level ----------
-  const indices = await page.evaluate(() => window.__petRescue.levelIndex);
+  // ---------- worlds 1–6 and a sample of later worlds: first, middle and last level ----------
+  // Later worlds load on demand; the sample covers the first and last of them and one between.
+  const indices = await page.evaluate(() => {
+    const { WORLDS } = window.__petRescue;
+    const pick = [0, 1, 2, 3, 4, 5, 6, Math.floor(WORLDS.length / 2), WORLDS.length - 1].filter((w, k, a) => w < WORLDS.length && a.indexOf(w) === k);
+    return Object.fromEntries(pick.map((w) => [WORLDS[w].key, WORLDS[w].first]));
+  });
   for (const [world, first] of Object.entries(indices)) {
     for (const offset of [0, 24, 49]) {
       const i = first + offset;
-      await page.evaluate((i) => window.__petRescue.game.startLevel(i), i);
+      await page.evaluate(async (i) => {
+        const { game, LEVELS, loadWorld } = window.__petRescue;
+        await loadWorld(LEVELS[i].worldIndex);
+        game.startLevel(i);
+      }, i);
       await page.waitForTimeout(offset === 0 ? 900 : 100);
       if (offset === 0) {
         await page.evaluate(() => window.__petRescue.game.ui.openOverlay === 'intro' && window.__petRescue.game.closeIntro([]));
@@ -259,7 +268,7 @@ try {
   await page.evaluate(() => window.__petRescue.game.openMap(2));
   await page.waitForTimeout(400);
   check((await page.locator('.map-grid .node').count()) === 50, 'map shows the 50 levels of a world');
-  check((await page.locator('.tabs .tab').count()) === 6, 'map shows six world tabs');
+  check((await page.locator('.tabs .tab').count()) >= 6, 'map shows the open worlds and a few locked ones');
   check((await page.locator('.map-card .weekly').count()) === 1, 'map shows the weekly set');
   await shot(page, '07-map');
   await textless(page, 'map');

@@ -8,7 +8,7 @@ import { setLanguage, t } from './i18n.js';
 import * as logic from './logic.js';
 import { SoundEngine } from './sound.js';
 import { Music } from './music.js';
-import { LEVELS } from './levels.js';
+import { LEVELS, WORLDS, loadWorld } from './levels.js';
 import { UI } from './icons.js';
 
 const KEY_DIRS = {
@@ -82,7 +82,10 @@ async function boot() {
   host.onResume(() => game.setHostPaused(false));
 
   await game.loadProgress();
-  game.startLevel(game.firstUnfinished());
+  // A returning player may be in a later world: load its file before the first frame of play.
+  const resumeAt = game.firstUnfinished();
+  await loadWorld(LEVELS[resumeAt].worldIndex).catch((err) => console.warn(err));
+  game.startLevel(resumeAt);
 
   // One-finger input: a short tap moves to a tile, a swipe takes one step.
   let press = null;
@@ -156,7 +159,7 @@ async function boot() {
     LEVELS.forEach((l, i) => (levelIndex[l.world] ??= i));
     const levelIds = Object.fromEntries(LEVELS.map((l, i) => [l.id, i]));
     const firstBeeLevel = LEVELS.findIndex((l) => l.bees?.length);
-    window.__petRescue = { game, world, ui, logic, SoundEngine, Music, LEVELS, levelIndex, levelIds, firstBeeLevel };
+    window.__petRescue = { game, world, ui, logic, SoundEngine, Music, LEVELS, WORLDS, loadWorld, levelIndex, levelIds, firstBeeLevel };
   }
 }
 

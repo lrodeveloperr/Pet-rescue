@@ -1,5 +1,5 @@
 // Game controller: connects rules, 3D world, interface, audio, ads and the host SDK.
-import { LEVELS, WORLDS, DAILY, WORLD_MECHANIC } from './levels.js';
+import { LEVELS, WORLDS, DAILY, WORLD_MECHANIC, THEMES, isLoaded, loadWorld, worldLevels } from './levels.js';
 import {
   ABILITY,
   COMPANIONS,
@@ -54,8 +54,8 @@ const WEEKLY_COUNT = 5;
 
 const COMPANION_FOR = Object.fromEntries(Object.entries(ABILITY).map(([c, a]) => [a, c]));
 
-// Album sets: each world's species. The meadow set includes the four companions.
-export const ALBUM_SETS = WORLDS.map((w, i) => ({ key: w.key, kinds: i === 0 ? [...COMPANIONS, ...WORLD_FRIENDS[0]] : WORLD_FRIENDS[i] ?? [] }));
+// Album sets: each theme's species. The meadow set includes the four companions.
+export const ALBUM_SETS = THEMES.map((key, i) => ({ key, kinds: i === 0 ? [...COMPANIONS, ...WORLD_FRIENDS[0]] : WORLD_FRIENDS[i] ?? [] }));
 
 /** The puzzle elements a level uses, in a fixed order. */
 export function mechanicsOf(def) {
@@ -233,14 +233,24 @@ export class Game {
       this.restartKey = `level-${i}`;
       this.restarts = 0;
     }
+    // Worlds after the sixth load on demand; a level in one that is not loaded yet starts
+    // as soon as its file arrives (normally a few milliseconds, since it ships with the game).
+    if (!isLoaded(i)) {
+      this.waitingFor = i;
+      loadWorld(LEVELS[i].worldIndex).then(() => this.waitingFor === i && this.startLevel(i));
+      return;
+    }
+    this.waitingFor = null;
     this.index = i;
     this.extra = null;
     const def = LEVELS[i];
     const firstTime = !this.isDone(i);
     this.firstTime = firstTime;
-    this.tutorial = firstTime && (def.lesson || (def.worldIndex === 0 ? def.number <= 4 : def.number <= 2));
+    this.tutorial = firstTime && (def.lesson || (def.worldIndex === 0 ? def.number <= 4 : def.worldIndex < 6 && def.number <= 2));
     const variant = this.variantFor(def.id, def.pet);
-    this.load(def, def.world, this.progress.owned, i, variant, firstTime && def.intro?.length ? def.intro : null);
+    this.load(def, def.theme, this.progress.owned, i, variant, firstTime && def.intro?.length ? def.intro : null);
+    // Fetch the next world ahead of time, so moving on never waits.
+    if (def.number > 40) loadWorld(def.worldIndex + 1);
   }
 
   startExtra(kind, def, n) {
@@ -809,13 +819,14 @@ export class Game {
       p.skipped = p.skipped.filter((x) => x !== id);
       this.ads.levelCompleted();
       const w = WORLDS[this.def.worldIndex];
-      if (this.def.number === w.levels.length && !p.worldsDone.includes(w.index)) {
+      if (this.def.number === w.count && !p.worldsDone.includes(w.index)) {
         p.worldsDone.push(w.index);
         worldDone = {
-          key: w.key,
-          stars: w.levels.reduce((a, l) => a + (p.stars[l.id] ?? 0), 0),
-          max: w.levels.length * 3,
-          next: WORLDS[w.index + 1]?.key ?? null,
+          key: w.theme,
+          number: w.index + 1,
+          stars: worldLevels(w.index).reduce((a, l) => a + (p.stars[l.id] ?? 0), 0),
+          max: w.count * 3,
+          next: WORLDS[w.index + 1]?.theme ?? null,
         };
       }
     }
@@ -887,7 +898,7 @@ export class Game {
       const hat = Object.keys(STAR_HATS).find((k) => STAR_HATS[k] === h.next);
       goals.push({ icon: HAT_ICONS[hat], kind: 'hat', ...this.fill(h, starsBefore, starsAfter) });
     }
-    const set = ALBUM_SETS[this.extra ? -1 : this.def.worldIndex] ?? null;
+    const set = this.extra ? null : ALBUM_SETS[THEMES.indexOf(this.def.theme)] ?? null;
     if (set) {
       const have = set.kinds.filter((k) => p.rescued[k] || p.owned.includes(k)).length;
       const gotNow = !this.extra && (p.rescued[this.state.pet] === 1 ? 1 : 0);
@@ -912,7 +923,8 @@ export class Game {
   tease() {
     if (this.extra || this.index >= LEVELS.length - 1) return null;
     const next = LEVELS[this.index + 1];
-    if (next.worldIndex !== this.def.worldIndex) return { html: WORLD_ICONS[next.world] + (WORLD_MECHANIC[next.world] ? MECH_ICONS[WORLD_MECHANIC[next.world]] : ''), kind: 'world' };
+    if (next.worldIndex !== this.def.worldIndex) return { html: WORLD_ICONS[next.theme] + (WORLD_MECHANIC[next.theme] ? MECH_ICONS[WORLD_MECHANIC[next.theme]] : ''), kind: 'world' };
+    if (!isLoaded(this.index + 1)) return null;
     const fresh = mechanicsOf(next).filter((m) => !this.progress.seen.includes(m));
     if (next.intro?.length || fresh.length) return { html: (next.intro?.length ? next.intro : fresh).map((m) => MECH_ICONS[m]).join(''), kind: 'element' };
     if (!this.progress.rescued[next.pet] && !this.progress.owned.includes(next.pet)) return { html: silhouette(next.pet), kind: 'animal' };
@@ -1118,16 +1130,22 @@ export class Game {
     if (worldIndex !== null) this.mapWorld = worldIndex;
     else if (!this.extra && this.index !== undefined) this.mapWorld = LEVELS[this.index].worldIndex;
     const w = WORLDS[this.mapWorld];
-    const first = LEVELS.findIndex((l) => l.worldIndex === this.mapWorld);
+    // A later world's file loads first (it shows each level's pet).
+    if (!w.loaded) {
+      const asked = this.mapWorld;
+      loadWorld(asked).then(() => this.mapWorld === asked && this.ui.openOverlay === null && this.openMap(asked));
+      return;
+    }
+    const first = w.first;
     this.ui.showMap({
       worlds: WORLDS.map((x) => ({
-        key: x.key,
+        key: x.theme,
         locked: !this.worldUnlocked(x.index),
-        stars: x.levels.reduce((a, l) => a + (this.progress.stars[l.id] ?? 0), 0),
-        max: x.levels.length * 3,
+        stars: worldLevels(x.index).reduce((a, l) => a + (this.progress.stars[l.id] ?? 0), 0),
+        max: x.count * 3,
       })),
       world: this.mapWorld,
-      levels: w.levels.map((l, k) => {
+      levels: worldLevels(this.mapWorld).map((l, k) => {
         const i = first + k;
         return { pet: l.pet, stars: this.progress.stars[l.id] ?? 0, done: this.isDone(i), locked: !this.isUnlocked(i), current: i === this.index && !this.extra };
       }),

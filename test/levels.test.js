@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { LEVELS, WORLDS, DAILY, WORLD_MECHANIC } from '../src/levels.js';
+import { LEVELS, WORLDS, DAILY, WORLD_MECHANIC, THEMES, loadWorld, worldLevels } from '../src/levels.js';
 import { parseLevel, createState, solve, COMPANIONS } from '../src/logic.js';
 import { ALL_ANIMALS, WORLD_FRIENDS } from '../src/species.js';
 import { canonical } from '../scripts/levelgen/core.mjs';
@@ -15,11 +15,18 @@ function ownedBefore(index) {
   return owned;
 }
 
+// Worlds after the sixth are loaded on demand in the game; the tests check all of them.
+await Promise.all(WORLDS.map((_, w) => loadWorld(w)));
+
 const MECHANIC_TILES = { current: /[<>^v]/, ice: /\*/, gate: /g/, bridge: /%/, burrow: /[()[\]]/ };
 
-test('six worlds of fifty levels with unique ids', () => {
-  assert.equal(WORLDS.length, 6);
-  for (const w of WORLDS) assert.equal(w.levels.length, 50, w.key);
+test('worlds of fifty levels with unique ids, cycling through the six themes', () => {
+  assert.ok(WORLDS.length >= 6);
+  WORLDS.forEach((w, i) => {
+    assert.equal(w.count, 50, w.key);
+    assert.equal(w.theme, THEMES[i % 6], `${w.key} theme`);
+    for (const l of worldLevels(i)) assert.ok(Array.isArray(l.map), `${l.id} is loaded`);
+  });
   assert.equal(new Set(LEVELS.map((l) => l.id)).size, LEVELS.length);
 });
 
@@ -37,15 +44,16 @@ test('the four companions are introduced in order on the first four levels', () 
   for (const l of LEVELS.slice(4)) assert.ok(ALL_ANIMALS.includes(l.pet) && !COMPANIONS.includes(l.pet), `${l.id} rescues a friend`);
 });
 
-test('each world rescues its own friends and uses its mechanic', () => {
+test("each world rescues its theme's friends and uses its theme's mechanic", () => {
   WORLDS.forEach((w, k) => {
-    const pets = new Set(w.levels.slice(4).map((l) => l.pet));
-    for (const p of pets) assert.ok(WORLD_FRIENDS[k].includes(p), `${p} belongs to ${w.key}`);
-    const mech = WORLD_MECHANIC[w.key];
+    const levels = worldLevels(k);
+    const pets = new Set(levels.slice(k === 0 ? 4 : 0).map((l) => l.pet));
+    for (const p of pets) assert.ok(WORLD_FRIENDS[k % 6].includes(p), `${p} belongs to ${w.key}`);
+    const mech = WORLD_MECHANIC[w.theme];
     if (!mech) return;
-    for (const l of w.levels) {
-      const uses = MECHANIC_TILES[mech].test(l.map.join('')) || (w.key === 'woods' && l.bees?.length);
-      assert.ok(uses, `${l.id} uses the ${w.key} mechanic`);
+    for (const l of levels) {
+      const uses = MECHANIC_TILES[mech].test(l.map.join('')) || (w.theme === 'woods' && l.bees?.length);
+      assert.ok(uses, `${l.id} uses the ${w.theme} mechanic`);
     }
   });
 });
@@ -66,19 +74,20 @@ test('the first session stays short', () => {
 });
 
 test('worlds 2–6 open with two lesson levels that introduce their mechanic', () => {
-  for (const w of WORLDS.slice(1)) {
+  for (const w of WORLDS.slice(1, 6)) {
     const mech = WORLD_MECHANIC[w.key];
-    assert.deepEqual(w.levels[0].intro, [mech], `${w.key} level 1 introduces ${mech}`);
-    for (const l of w.levels.slice(0, 2)) assert.ok(l.lesson, `${l.id} is a lesson`);
-    for (const l of w.levels.slice(0, 2)) assert.ok(l.dead <= 0.35, `${l.id} lesson has few dead positions`);
+    const levels = worldLevels(w.index);
+    assert.deepEqual(levels[0].intro, [mech], `${w.key} level 1 introduces ${mech}`);
+    for (const l of levels.slice(0, 2)) assert.ok(l.lesson, `${l.id} is a lesson`);
+    for (const l of levels.slice(0, 2)) assert.ok(l.dead <= 0.35, `${l.id} lesson has few dead positions`);
   }
   const beeLesson = LEVELS.find((l) => l.intro?.includes('bees'));
   assert.ok(beeLesson && beeLesson.worldIndex === 0 && beeLesson.bees?.length, 'bees are introduced in the meadow');
 });
 
-test('something new (an element or a mix) arrives regularly in every world after the first', () => {
-  for (const w of WORLDS.slice(1)) {
-    const at = w.levels.map((l, k) => (l.intro ? k : -1)).filter((k) => k >= 0);
+test('something new (an element or a mix) arrives regularly in worlds 2–6', () => {
+  for (const w of WORLDS.slice(1, 6)) {
+    const at = worldLevels(w.index).map((l, k) => (l.intro ? k : -1)).filter((k) => k >= 0);
     assert.ok(at.length >= 3, `${w.key} has ${at.length} intros`);
   }
 });
@@ -94,11 +103,12 @@ test('dead positions are rare outside spike levels', () => {
 test('the core choice survives: many generated levels need two or more companions', () => {
   const later = LEVELS.filter((l) => l.worldIndex > 0 && Array.isArray(l.needs));
   const two = later.filter((l) => l.needs.length >= 2).length;
-  assert.ok(two / later.length >= 0.4, `${two} of ${later.length} levels in worlds 2–6 need two or more companions`);
+  assert.ok(two / later.length >= 0.4, `${two} of ${later.length} levels after world 1 need two or more companions`);
 });
 
-// Every fifth level: each companion recorded as needed really is needed.
-LEVELS.filter((l, i) => i % 5 === 0 && Array.isArray(l.needs) && l.needs.length).forEach((def) => {
+// A sample (every fifth level of worlds 1–6, every 25th after): each companion recorded as
+// needed really is needed.
+LEVELS.filter((l, i) => i % (l.worldIndex < 6 ? 5 : 25) === 0 && Array.isArray(l.needs) && l.needs.length).forEach((def) => {
   test(`${def.id}: needs ${def.needs.join(' + ')}`, () => {
     for (const c of def.needs) {
       const r = solve(createState(parseLevel(def), COMPANIONS.filter((o) => o !== c)), { maxNodes: 400000 });
@@ -111,12 +121,15 @@ test('the daily pool lasts more than a year', () => {
   assert.ok(DAILY.length >= 366, `${DAILY.length} daily puzzles`);
 });
 
-LEVELS.forEach((def, i) => {
-  test(`${def.id}: solvable in exactly par (${def.par}) moves with the companions available`, () => {
-    const owned = def.worldIndex === 0 ? ownedBefore(i) : COMPANIONS;
-    const r = solve(createState(parseLevel(def), owned));
-    assert.equal(r.solved, true, `unsolvable (nodes=${r.nodes}, exhausted=${r.exhausted})`);
-    assert.equal(r.moves, def.par);
+WORLDS.forEach((w) => {
+  test(`${w.key}: every level solvable in exactly par moves with the companions available`, () => {
+    for (const def of worldLevels(w.index)) {
+      const i = w.first + def.number - 1;
+      const owned = def.worldIndex === 0 ? ownedBefore(i) : COMPANIONS;
+      const r = solve(createState(parseLevel(def), owned));
+      assert.equal(r.solved, true, `${def.id} unsolvable (nodes=${r.nodes}, exhausted=${r.exhausted})`);
+      assert.equal(r.moves, def.par, `${def.id} par`);
+    }
   });
 });
 

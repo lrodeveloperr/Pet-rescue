@@ -10,7 +10,7 @@
 
 Rescue a caged pet, then lead it home. Each rescued companion lends one ability while it leads: the puppy pushes boulders (into ponds and gaps to make crossings), the frog hops one-tile gaps, the duck swims, and the mole digs through hedges. You cannot switch companion while swimming, which drives the later puzzles.
 
-**Status:** a complete build: 300 campaign levels in six worlds, a daily puzzle pool of more than a year, weekly sets and an endless encore, 32 animals in three looks, 16 hats, a pet garden and capped ads. It has not been uploaded, certified, tested on real phones or tested with players.
+**Status:** a complete build: 5,000 campaign levels in 100 worlds, a separate daily puzzle pool of more than a year, weekly sets and an endless encore, 32 animals in three looks, 16 hats, a pet garden and capped ads. It has not been uploaded, certified, tested on real phones or tested with players.
 
 <p>
   <img src="docs/screenshots/push-story.png" width="200" alt="The puppy's first rescue plays a story: a boulder pushed into water becomes a stepping stone">
