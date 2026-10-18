@@ -50,6 +50,67 @@ test('each world rescues its own friends and uses its mechanic', () => {
   });
 });
 
+const HANDMADE_LONG = [8, 11, 12];
+
+test('the long hand-made levels (33–39 moves) left the campaign for the daily pool', async () => {
+  const { HANDMADE } = await import('../src/levels/handmade.js');
+  const maps = new Set(LEVELS.map((l) => canonical(l.map)));
+  for (const n of HANDMADE_LONG) {
+    assert.ok(!maps.has(canonical(HANDMADE[n - 1].map)), `hand-made ${n} is not in the campaign`);
+    assert.ok(DAILY.some((d) => canonical(d.map) === canonical(HANDMADE[n - 1].map)), `hand-made ${n} is a daily puzzle`);
+  }
+});
+
+test('the first session stays short', () => {
+  for (const l of LEVELS.slice(0, 12)) assert.ok(l.par <= 28, `${l.id} par ${l.par}`);
+});
+
+test('worlds 2–6 open with two lesson levels that introduce their mechanic', () => {
+  for (const w of WORLDS.slice(1)) {
+    const mech = WORLD_MECHANIC[w.key];
+    assert.deepEqual(w.levels[0].intro, [mech], `${w.key} level 1 introduces ${mech}`);
+    for (const l of w.levels.slice(0, 2)) assert.ok(l.lesson, `${l.id} is a lesson`);
+    for (const l of w.levels.slice(0, 2)) assert.ok(l.dead <= 0.35, `${l.id} lesson has few dead positions`);
+  }
+  const beeLesson = LEVELS.find((l) => l.intro?.includes('bees'));
+  assert.ok(beeLesson && beeLesson.worldIndex === 0 && beeLesson.bees?.length, 'bees are introduced in the meadow');
+});
+
+test('something new (an element or a mix) arrives regularly in every world after the first', () => {
+  for (const w of WORLDS.slice(1)) {
+    const at = w.levels.map((l, k) => (l.intro ? k : -1)).filter((k) => k >= 0);
+    assert.ok(at.length >= 3, `${w.key} has ${at.length} intros`);
+  }
+});
+
+test('dead positions are rare outside spike levels', () => {
+  for (const l of LEVELS) {
+    // Lessons have their own cap, checked above (bridge lessons allow more: every crossing breaks one).
+    if (l.handmade || l.spike || l.lesson || l.dead === undefined) continue;
+    assert.ok(l.dead <= 0.3, `${l.id} dead fraction ${l.dead}`);
+  }
+});
+
+test('the core choice survives: many generated levels need two or more companions', () => {
+  const later = LEVELS.filter((l) => l.worldIndex > 0 && Array.isArray(l.needs));
+  const two = later.filter((l) => l.needs.length >= 2).length;
+  assert.ok(two / later.length >= 0.4, `${two} of ${later.length} levels in worlds 2–6 need two or more companions`);
+});
+
+// Every fifth level: each companion recorded as needed really is needed.
+LEVELS.filter((l, i) => i % 5 === 0 && Array.isArray(l.needs) && l.needs.length).forEach((def) => {
+  test(`${def.id}: needs ${def.needs.join(' + ')}`, () => {
+    for (const c of def.needs) {
+      const r = solve(createState(parseLevel(def), COMPANIONS.filter((o) => o !== c)), { maxNodes: 400000 });
+      assert.equal(r.solved, false, `solvable without ${c}`);
+    }
+  });
+});
+
+test('the daily pool lasts more than a year', () => {
+  assert.ok(DAILY.length >= 366, `${DAILY.length} daily puzzles`);
+});
+
 LEVELS.forEach((def, i) => {
   test(`${def.id}: solvable in exactly par (${def.par}) moves with the companions available`, () => {
     const owned = def.worldIndex === 0 ? ownedBefore(i) : COMPANIONS;

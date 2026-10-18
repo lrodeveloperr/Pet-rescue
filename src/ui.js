@@ -2,6 +2,7 @@
 import { face, silhouette, ability, UI, WORLD_ICONS, HAT_ICONS, MECH_ICONS } from './icons.js';
 import { COMPANIONS, ABILITY } from './logic.js';
 import { VARIANT_TINTS } from './models.js';
+import { ABILITY_DEMOS, MECH_DEMOS, noticeScene, offerScene } from './demos.js';
 import { t } from './i18n.js';
 
 // Rewarded buttons ignore presses this soon after a panel opens, so a tap meant for the
@@ -268,16 +269,10 @@ export class Interface {
    * 'save' / 'load': progress could not be saved or loaded (play continues).
    */
   notice(kind) {
-    const pictures = {
-      noAd: `<span class="p">${UI.video}<i class="cross">${UI.cross}</i></span>`,
-      noReward: `<span class="p">${UI.video}</span><span class="p small">${UI.arrow}</span><span class="p">${UI.gift}<i class="cross">${UI.cross}</i></span>`,
-      save: `<span class="p">${UI.cloud}<i class="cross">${UI.cross}</i></span>`,
-      load: `<span class="p">${UI.cloud}<i class="cross">${UI.cross}</i></span>`,
-    };
     const words = { noAd: 'adUnavailable', noReward: 'adNoReward', save: 'saveFailed', load: 'loadFailed' };
-    const b = el('div', { class: `notice ${kind}`, 'aria-hidden': 'true' }, pictures[kind]);
+    const b = el('div', { class: `notice ${kind}`, 'aria-hidden': 'true' }, noticeScene(kind));
     this.layer.append(b);
-    setTimeout(() => b.remove(), 2600);
+    setTimeout(() => b.remove(), 3200);
     this.toastEl.textContent = t(words[kind]);
   }
 
@@ -354,17 +349,24 @@ export class Interface {
     focusForKeyboard(resume);
   }
 
-  /** A wordless card for a new element: its icon(s) and a play button. */
-  showIntro({ mechanics, onPlay }) {
-    this.introArgs = { mechanics, onPlay };
+  /**
+   * A wordless card for something new: each new element or companion ability plays out as a
+   * short animated story (cause, then effect), with its icon beside it, and a play button.
+   */
+  showIntro({ mechanics = [], abilities = [], onPlay }) {
+    this.introArgs = { mechanics, abilities, onPlay };
     const card = el('div', { class: 'card intro-card' });
     card.append(el('div', { class: 'intro-badge', 'aria-hidden': 'true' }, UI.sparkle));
-    const icons = el('div', { class: 'intro-icons', 'aria-hidden': 'true' }, mechanics.map((m) => `<span class="mech">${MECH_ICONS[m]}</span>`).join('<b class="plus">+</b>'));
-    card.append(icons);
+    const stories = [
+      ...abilities.map((a) => `<div class="story"><span class="mech small">${ability(a)}</span>${ABILITY_DEMOS[a]()}</div>`),
+      ...mechanics.map((m) => `<div class="story"><span class="mech small">${MECH_ICONS[m]}</span>${MECH_DEMOS[m]()}</div>`),
+    ];
+    card.append(el('div', { class: 'intro-stories', 'aria-hidden': 'true' }, stories.join('<b class="plus">+</b>')));
     const play = button('big primary', UI.play, t('play'));
     card.append(play);
     this.hideOverlays();
-    this.open('intro', `${t('newElement')}: ${mechanics.map((m) => t(`m_${m}`)).join(', ')}`, card);
+    const names = [...abilities.map((a) => t(Object.keys(ABILITY).find((c) => ABILITY[c] === a))), ...mechanics.map((m) => t(`m_${m}`))];
+    this.open('intro', `${t('newElement')}: ${names.join(', ')}`, card);
     this.onEscape = () => onPlay();
     onPress(play, () => onPlay(), { guard: 250 });
     focusForKeyboard(play);
@@ -583,17 +585,10 @@ export class Interface {
    * to the reward. Accept (the ad glyph) and decline (a cross) look alike. The full wording is
    * read to screen readers only, so the screen stays textless.
    */
-  showOffer({ kind, text, preview = null, variant = 0, onAccept, onDecline }) {
+  showOffer({ kind, text, art = {}, onAccept, onDecline }) {
     const card = el('div', { class: 'card offer-card' });
-    const icon = preview ?? { skip: UI.skip, hat: UI.hats, bonus: UI.calendar, hint: UI.hint, friend: UI.gift }[kind];
-    const shown = variant ? `<span class="tinted" style="--tint:${tintHex(variant)}">${icon}</span>` : icon;
-    card.append(
-      el(
-        'div',
-        { class: 'offer-pict', 'aria-hidden': 'true' },
-        `<span class="offer-ad">${UI.video}</span><span class="offer-arrow">${UI.arrow}</span><span class="offer-icon">${shown}</span>`,
-      ),
-    );
+    // The story: a short video plays (its bar fills), then the exact reward appears.
+    card.append(el('div', { class: 'offer-story', 'aria-hidden': 'true' }, offerScene(kind, art)));
     const desc = el('p', { class: SHOW_OFFER_WORDS ? 'offer-words' : 'sr-only', id: `offer-desc-${kind}` });
     desc.textContent = text;
     card.append(desc);

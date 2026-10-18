@@ -1,6 +1,6 @@
 # Engagement and revenue audit
 
-Audit of Pet Rescue: Borrow & Escape (commit `a2ad7f5`, 18 October 2026). It is checked against the principles in [the research report](../reports/Puzzle%20game%20engagement%20and%20ad%20revenue.md), whose IDs (P, E, R, M, L) are used throughout.
+Audit of Pet Rescue: Borrow & Escape (commit `a2ad7f5`, 18 October 2026). Each improvement below now records what was done about it; the level tables show the campaign before and after. It is checked against the principles in [the research report](../reports/Puzzle%20game%20engagement%20and%20ad%20revenue.md), whose IDs (P, E, R, M, L) are used throughout.
 
 **Method:**
 - **Code review:** every principle checked against the source.
@@ -31,7 +31,7 @@ Its weaknesses are, in order of impact:
 
 ## Measured level facts
 
-The figures come from scripts in the session scratchpad. They re-run the game's own solver on `src/levels/campaign.js`.
+The figures come from `scripts/level-stats.mjs`, which re-runs the game's own solver on `src/levels/campaign.js`.
 
 | Measure | Meadow | River | Snow | Farm | Canyon | Woods |
 |---|---|---|---|---|---|---|
@@ -46,6 +46,27 @@ Across all 300 levels:
 - 129 levels have par 10–14, the generator's floor band.
 - Only 17 have par 25 or more, and three of those are hand-made levels 8, 11 and 12 (par 38, 39 and 33).
 - The last world ends at par 18, easier than level 8.
+
+### After the fixes
+
+The same measures on the regenerated campaign (18 October 2026):
+
+| Measure | Meadow | River | Snow | Farm | Canyon | Woods |
+|---|---|---|---|---|---|---|
+| Average par (moves) | 16.4 | 14.7 | 14.4 | 15.1 | 13.2 | 13.7 |
+| Par, levels 1–25 → 26–50 | 16.3 → 16.5 | 13.5 → 15.8 | 14.0 → 14.9 | 14.0 → 16.2 | 12.6 → 13.8 | 13.2 → 14.2 |
+| Levels where a dead (unwinnable) position is reachable | 2/50 | 4/50 | 3/50 | 26/50 | 50/50 | 19/50 |
+| Obstacle tiles never touched by the optimal solution | 22% | 5% | 5% | 24% | 22% | 19% |
+| Generated levels needing one companion / two or more | 9 / 32 | 18 / 32 | 30 / 20 | 32 / 18 | 34 / 16 | 30 / 20 |
+| Levels opening with a new element or mix | 21 (bees) | 1, 11, 31 | 1, 11, 31, 41 | 1, 11, 21, 31 | 1, 11, 21, 31, 41 | 1, 11, 21, 31, 41 |
+
+Across all 300 levels:
+- The longest level in the first 12 is 22 moves (was 39). Six levels have par 25 or more (was 17); 151 have par 10–14 (was 129).
+- Clutter fell from 35–58% to 5–24%.
+- In worlds 2–6, 106 of 250 levels need two or more companions (42%, up from about 20%). That is short of the half the audit aimed for: two-companion layouts were rare enough in Farm and Canyon that those segments fell back to one-companion levels.
+- Farm levels with a reachable dead position fell from 46 to 26. Canyon is still 50/50 by this measure, because every bridge crossing makes some positions dead; what changed is that the share of dead positions in each level is now capped. Woods rose from 10 to 19, because its later segments mix in gates and bridges.
+- Par still rises only modestly within each world. Difficulty now comes from structure (companions needed, switches, dead positions) rather than length, so par alone understates it; only a playtest can confirm the sawtooth feels right.
+- The daily pool has 403 puzzles (average par 14.6), including the three long hand-made levels.
 
 ## Scorecard
 
@@ -163,12 +184,12 @@ Effort: S is under half a day, M is 1–2 days, L is 3 or more days.
 
 10. Move or shorten hand-made levels 8, 11 and 12 (33–39 moves) out of the first session (E2, E3). S<br>→ **Done.** Hand-made levels 8, 11 and 12 moved to the daily pool; level 9 (26 moves) is now a meadow spike at level 19.
 11. Strip obstacles the solution never touches, keeping at most 1–2 deliberate decoys per level (E8). M<br>→ **Done.** The generator strips every obstacle the solution never touches when the puzzle (par, required companions, required mechanics) stays the same.
-12. Make each level feature specific companions and require exactly those; aim for at least half the levels in worlds 2–6 needing 2 or more companions, to restore the core choice (E5, brief). M<br>→ **Done.** Each level features specific companions and requires exactly those. See the measured table below for the share needing two or more.
+12. Make each level feature specific companions and require exactly those; aim for at least half the levels in worlds 2–6 needing 2 or more companions, to restore the core choice (E5, brief). M<br>→ **Mostly.** Each level features specific companions and requires exactly those (tested). 42% of levels in worlds 2–6 need two or more companions, up from about 20% but short of half.
 13. Add the "greedy route fails" and "few near-par solutions" checks to the generator (E6). M<br>→ **Partly.** The meadow requires a real detour over the obstacle-free route, and a limited-search agent scores how hard a level is to find. A count of near-par solutions was not added.
-14. Score difficulty structurally (dead-position density, irreversible actions, required switches, congestion) and re-curate each world into a true sawtooth, with short hard levels and later worlds harder than the first (E1, E3, E7). M<br>→ **Done.** Difficulty combines required companions, switches, irreversible actions, dead-position share, the limited agent, search size, par and detour; each 10-level segment rises to a short spike (par ≤ 22) and then a breather.
-15. Hand-make the first two levels of each world as forced single-route lessons for its mechanic, plus the wait action for bees (E9). M<br>→ **Partly.** Each world opens with two generated lesson levels (small, short, almost no dead positions) and an intro card, and bees get a lesson in the meadow. They were generated to these limits rather than hand-made, and their single route was not verified.
+14. Score difficulty structurally (dead-position density, irreversible actions, required switches, congestion) and re-curate each world into a true sawtooth, with short hard levels and later worlds harder than the first (E1, E3, E7). M<br>→ **Done in the generator; unconfirmed in play.** Difficulty combines required companions, switches, irreversible actions, dead-position share, the limited agent, search size, par and detour; each 10-level segment rises to a short spike (par ≤ 22) and then a breather.
+15. Hand-make the first two levels of each world as forced single-route lessons for its mechanic, plus the wait action for bees (E9). M<br>→ **Partly.** Each world opens with two generated lesson levels (small, short, almost no dead positions) and an animated story card that plays the rule out, and bees get a lesson in the meadow. Each companion's first rescue plays its ability as a story too. They were generated to these limits rather than hand-made, and their single route was not verified.
 16. Add a new element or combination about every 10 levels: mechanic mixes in later worlds, and variants such as two-plate gates, bridges over water, ice with currents or bees over ice (E15). L<br>→ **Partly.** Every world after the first adds a new mix about every 10 levels (for example currents with bees, ice with currents, gates with ice, bridges with gates, burrows with bridges), each opened by an intro card. New sub-variants (two-plate gates, bridges over water) were not added.
-17. Cut the 50/50 dead-position rate in Canyon and 46/50 in Farm: prefer layouts where mistakes are recoverable, and keep dead positions for spike levels (E2, E12). M<br>→ **Done.** The share of reachable positions that are dead is capped per level: 5% in lessons (35% in the bridge lessons, where every crossing destroys a bridge), 30% in Canyon and 20% elsewhere. See the measured table below.
+17. Cut the 50/50 dead-position rate in Canyon and 46/50 in Farm: prefer layouts where mistakes are recoverable, and keep dead positions for spike levels (E2, E12). M<br>→ **Partly.** Farm fell from 46 to 26 levels with a reachable dead position; Canyon is still 50/50, since every bridge crossing creates some. The share of reachable positions that are dead is capped per level: 5% in lessons (35% in the bridge lessons, where every crossing destroys a bridge), 30% in Canyon and 20% elsewhere. See the level tables above.
 18. Hints: a hint button with three escalating stages, offered (pulsing) after idle time instead of auto-shown; no auto-hint for players who have not asked (E13). M<br>→ **Done.** A hint button with three stages; after idle time it pulses. Only tutorial and lesson levels show the hand by themselves.
 19. Mark par on the star meter so players know the target (E14). S<br>→ **Done.** The star meter shows moves/par.
 20. Playtest 10–20 people, or run a web-portal build with telemetry; prune the bottom 10–20% of levels by abandon versus pass time (E4, R1). M<br>→ **Needs people.** Not possible here. A limited-search agent and a dead-position share stand in for difficulty until a playtest or a web-portal build with telemetry exists.

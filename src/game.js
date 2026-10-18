@@ -672,6 +672,16 @@ export class Game {
     this.audio.escaping();
     if (r.gained) this.ui.flashCompanionGain(r.gained, this.world.tileScreen(r.at, 0.8));
     this.ui.bubble(this.world.tileScreen(r.at, 1.4), UI.heart, 'heart');
+    // The first time a companion joins, its ability plays out as a short story.
+    const skill = r.gained && ABILITY[r.gained];
+    if (skill && !this.progress.seen.includes(skill)) {
+      this.progress.seen.push(skill);
+      this.queue = [];
+      this.pendingTap = null;
+      this.menuPaused = true;
+      this.timers.hold('menu');
+      this.ui.showIntro({ abilities: [skill], onPlay: () => this.closeIntro([]) });
+    }
   }
 
   explainBlocked(r) {
@@ -938,7 +948,7 @@ export class Game {
     this.menuPaused = true;
     this.timers.hold('menu');
     this.clearHint();
-    this.ui.showOffer({ kind: 'skip', text: t('offerSkip'), onAccept: () => this.watchForSkip(), onDecline: () => this.resume() });
+    this.ui.showOffer({ kind: 'skip', text: t('offerSkip'), art: { pet: this.state.pet }, onAccept: () => this.watchForSkip(), onDecline: () => this.resume() });
   }
 
   /** Plays a rewarded ad; on anything but a reward, explains (declined) or shows the unavailable state. */
@@ -1225,8 +1235,7 @@ export class Game {
         this.ui.showOffer({
           kind: 'friend',
           text: t('offerFriend'),
-          preview: face(c.kind),
-          variant: c.variant,
+          art: { kind: c.kind, variant: c.variant },
           onAccept: () => this.watchForFriend(c),
           onDecline: () => this.showWinAgain(),
         }),
@@ -1373,7 +1382,7 @@ export class Game {
       // Locked star hats can be chosen with a rewarded ad; streak hats only by streaks.
       if (hat in STAR_HATS && this.ads.rewardedAvailable) {
         this.audio.play('ui');
-        this.ui.showOffer({ kind: 'hat', text: t('offerHat'), preview: HAT_ICONS[hat], onAccept: () => this.watchForHat(hat), onDecline: () => this.openHats() });
+        this.ui.showOffer({ kind: 'hat', text: t('offerHat'), art: { hat }, onAccept: () => this.watchForHat(hat), onDecline: () => this.openHats() });
       } else {
         this.audio.play('blocked');
         this.ui.shakeHat(hat);

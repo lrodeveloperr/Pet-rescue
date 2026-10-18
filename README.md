@@ -13,11 +13,15 @@ Rescue a caged pet, then lead it home. Each rescued companion lends one ability 
 **Status:** a complete build: 300 campaign levels in six worlds, a daily puzzle pool of more than a year, weekly sets and an endless encore, 32 animals in three looks, 16 hats, a pet garden and capped ads. It has not been uploaded, certified, tested on real phones or tested with players.
 
 <p>
-  <img src="docs/screenshots/snow-portrait.png" width="240" alt="A snow level in portrait">
-  <img src="docs/screenshots/map.png" width="240" alt="The level map with the daily puzzle, weekly set and world tabs">
-  <img src="docs/screenshots/garden.png" width="240" alt="The pet garden">
+  <img src="docs/screenshots/push-story.png" width="200" alt="The puppy's first rescue plays a story: a boulder pushed into water becomes a stepping stone">
+  <img src="docs/screenshots/snow-portrait.png" width="200" alt="A snow level in portrait">
+  <img src="docs/screenshots/offer.png" width="200" alt="A rewarded offer as a picture: a video, then the level skipped">
+  <img src="docs/screenshots/map.png" width="200" alt="The level map with the daily puzzle, weekly set and world tabs">
 </p>
-<img src="docs/screenshots/woods-bees-landscape.png" width="560" alt="A woods level with bees in landscape">
+<p>
+  <img src="docs/screenshots/garden.png" width="200" alt="The pet garden with animals wearing hats">
+  <img src="docs/screenshots/bees-landscape.png" width="420" alt="A level with bees in landscape">
+</p>
 
 ## Run it
 
@@ -53,10 +57,10 @@ No words appear on screen; digits do (moves, stars, streak days). Words exist on
 - The objective strip shows the caged pet → home. The pet gets a heart once it is rescued, and the home starts bouncing. The star meter shows moves against par.
 - A bouncing pin marks the current goal. Pulsing rings mark obstacles the active companion can act on.
 - A blocked move shakes the rescuer. A bubble then shows what would help: the needed companion's face (its button pulses), a lock if it is not rescued yet, or a cross.
-- The first time a new element appears (currents, ice, gates, bridges, burrows, bees, or a new mix), a card shows its icon and the board rings it.
+- The first time a companion joins, and the first time a new element appears (currents, ice, gates, bridges, burrows, bees, or a new mix), a card plays a short animated story on a few tiles: the cause, then the effect (a boulder pushed into water becomes a stepping stone; one step onto ice slides you to the tree). Then the board rings the new element.
 - Hints are on request. After idle time the hint button pulses; it marks the key object, then shows the next moves, then the whole route. Tutorial levels show the hand by themselves. Hints come from a solver, so they are always valid.
 - If a move makes the level unwinnable, undo and restart light up and the hand points at undo.
-- Rewarded-ad offers are pictures: the ad glyph → the reward, with an ad button and a cross button that look alike. Failures are picture notices.
+- Rewarded-ad offers are picture stories: a video plays (its bar fills), then the exact reward appears (the level skipped, the route drawn, the hat on your head). The ad button and the cross button look alike. Failures are picture stories too.
 
 ## Retention and rewards
 
@@ -82,7 +86,7 @@ Every sound is synthesized at runtime with the Web Audio API (`src/sound.js`, `s
 
 ## Size and performance
 
-- The production build is about 213 KB gzipped, against the 15 MiB initial-bundle target. All models are generated in code from primitives, and all sound and music are synthesized, so the game ships no asset files.
+- The production build is about 225 KB gzipped, against the 15 MiB initial-bundle target. All models are generated in code from primitives, and all sound and music are synthesized, so the game ships no asset files.
 - Each character is merged into one vertex-coloured mesh. Ground and trees are instanced.
 - The renderer caps pixel ratio at 2 and lowers it automatically if frames run slower than 45 fps.
 

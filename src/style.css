@@ -1719,3 +1719,406 @@ svg {
   line-height: 1.4;
   text-align: center;
 }
+
+/* ---------- Demos: animated picture stories (src/demos.js) ---------- */
+
+.demo {
+  --demo: 4s;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.demo g[class^='a-'] {
+  animation: var(--demo) ease-in-out infinite;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+/* Ice: step on, slide to the tree. */
+.a-ice-hero { animation-name: ice-hero !important; }
+.a-ice-lines { animation-name: ice-lines !important; }
+.a-ice-bump { animation-name: ice-bump !important; }
+.a-ice-hand { animation-name: tap-early !important; }
+@keyframes ice-hero {
+  0%, 18% { transform: translateX(0); opacity: 1; }
+  27% { transform: translateX(40px); }
+  48%, 86% { transform: translateX(120px); opacity: 1; }
+  93% { transform: translateX(120px); opacity: 0; }
+  94% { transform: translateX(0); opacity: 0; }
+  100% { transform: translateX(0); opacity: 1; }
+}
+@keyframes ice-lines {
+  0%, 26% { opacity: 0; }
+  30%, 46% { opacity: 1; }
+  52%, 100% { opacity: 0; }
+}
+@keyframes ice-bump {
+  0%, 46% { opacity: 0; transform: scale(0.6); }
+  50% { opacity: 1; transform: scale(1.1); }
+  64%, 100% { opacity: 0; transform: scale(1); }
+}
+@keyframes tap-early {
+  0%, 3% { opacity: 0; transform: translateY(10px); }
+  8% { opacity: 1; transform: translateY(0); }
+  12% { transform: translateY(4px) scale(0.92); }
+  16% { opacity: 1; transform: translateY(0); }
+  20%, 100% { opacity: 0; }
+}
+
+/* Current: drift downstream. */
+.a-flow { animation: flow 1.2s linear infinite !important; }
+.a-current-hero { animation-name: current-hero !important; }
+.a-bob { animation: bob-small 0.9s ease-in-out infinite !important; }
+@keyframes flow {
+  0% { transform: translateX(-6px); opacity: 0; }
+  30% { opacity: 1; }
+  100% { transform: translateX(10px); opacity: 0; }
+}
+@keyframes bob-small {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+@keyframes current-hero {
+  0%, 12% { transform: translateX(0); opacity: 1; }
+  70%, 86% { transform: translateX(120px); opacity: 1; }
+  93% { transform: translateX(120px); opacity: 0; }
+  94% { transform: translateX(0); opacity: 0; }
+  100% { transform: translateX(0); opacity: 1; }
+}
+
+/* Plate and gate: boulder onto the plate, gate opens, rescuer walks home. */
+.a-gate-boulder { animation-name: gate-push !important; }
+.a-gate-puppy { animation-name: gate-push !important; }
+.a-gate-glow { animation-name: gate-glow !important; }
+.a-gate-link { animation-name: gate-link !important; }
+.a-gate-bars { animation-name: gate-bars !important; }
+.a-gate-hero { animation-name: gate-hero !important; }
+.a-gate-heart { animation-name: home-heart !important; }
+@keyframes gate-push {
+  0%, 10% { transform: translateX(0); opacity: 1; }
+  26%, 88% { transform: translateX(40px); opacity: 1; }
+  94% { transform: translateX(40px); opacity: 0; }
+  95% { transform: translateX(0); opacity: 0; }
+  100% { transform: translateX(0); opacity: 1; }
+}
+@keyframes gate-glow {
+  0%, 26% { opacity: 0; transform: scale(0.6); }
+  32% { opacity: 1; transform: scale(1.15); }
+  40%, 88% { opacity: 1; transform: scale(1); }
+  94%, 100% { opacity: 0; }
+}
+@keyframes gate-link {
+  0%, 30% { opacity: 0; }
+  36%, 88% { opacity: 1; }
+  94%, 100% { opacity: 0; }
+}
+@keyframes gate-bars {
+  0%, 36% { transform: translateY(0); opacity: 1; }
+  46%, 90% { transform: translateY(24px); opacity: 0; }
+  96%, 100% { transform: translateY(0); opacity: 1; }
+}
+@keyframes gate-hero {
+  0%, 46% { transform: translateX(0); opacity: 1; }
+  76%, 88% { transform: translateX(160px); opacity: 1; }
+  94% { transform: translateX(160px); opacity: 0; }
+  95% { transform: translateX(0); opacity: 0; }
+  100% { transform: translateX(0); opacity: 1; }
+}
+@keyframes home-heart {
+  0%, 75% { opacity: 0; transform: translateY(6px) scale(0.5); }
+  80% { opacity: 1; transform: translateY(-4px) scale(1.2); }
+  88% { opacity: 1; transform: translateY(-8px) scale(1); }
+  94%, 100% { opacity: 0; }
+}
+
+/* Bridge: cross it, and it falls behind you. */
+.a-bridge-hero { animation-name: bridge-hero !important; }
+.a-plank1 { animation-name: plank1 !important; }
+.a-plank2 { animation-name: plank2 !important; }
+.a-bridge-x { animation-name: bridge-x !important; }
+@keyframes bridge-hero {
+  0%, 8% { transform: translateX(0); opacity: 1; }
+  52%, 88% { transform: translateX(120px); opacity: 1; }
+  94% { transform: translateX(120px); opacity: 0; }
+  95% { transform: translateX(0); opacity: 0; }
+  100% { transform: translateX(0); opacity: 1; }
+}
+@keyframes plank1 {
+  0%, 30% { transform: translateY(0) rotate(0); opacity: 1; }
+  40%, 92% { transform: translateY(16px) rotate(8deg) scale(0.6); opacity: 0; }
+  98%, 100% { transform: translateY(0); opacity: 1; }
+}
+@keyframes plank2 {
+  0%, 44% { transform: translateY(0) rotate(0); opacity: 1; }
+  54%, 92% { transform: translateY(16px) rotate(-8deg) scale(0.6); opacity: 0; }
+  98%, 100% { transform: translateY(0); opacity: 1; }
+}
+@keyframes bridge-x {
+  0%, 60% { opacity: 0; transform: scale(0.7); }
+  66%, 88% { opacity: 1; transform: scale(1); }
+  94%, 100% { opacity: 0; }
+}
+
+/* Burrows: into one hole, out of the other. */
+.a-burrow-in { animation-name: burrow-in !important; }
+.a-burrow-out { animation-name: burrow-out !important; }
+.a-burrow-arc { animation-name: burrow-arc !important; }
+@keyframes burrow-in {
+  0%, 8% { transform: translateX(0) scale(1); opacity: 1; }
+  24% { transform: translateX(40px) scale(1); }
+  34% { transform: translate(40px, 8px) scale(0); opacity: 1; }
+  35%, 95% { transform: translate(40px, 8px) scale(0); opacity: 0; }
+  96% { transform: translateX(0) scale(1); opacity: 0; }
+  100% { transform: translateX(0) scale(1); opacity: 1; }
+}
+@keyframes burrow-arc {
+  0%, 30% { opacity: 0; stroke-dashoffset: 0; }
+  36%, 52% { opacity: 1; }
+  60%, 100% { opacity: 0; }
+}
+@keyframes burrow-out {
+  0%, 50% { transform: translateY(8px) scale(0); opacity: 0; }
+  58% { transform: translateY(0) scale(1.1); opacity: 1; }
+  62% { transform: translateY(0) scale(1); }
+  76%, 88% { transform: translateX(40px); opacity: 1; }
+  94%, 100% { transform: translateX(40px); opacity: 0; }
+}
+
+/* Bees: tap yourself to wait; go when the bee has flown off. */
+.a-bee { animation-name: bee-route !important; }
+.a-buzz { animation: buzz 0.25s linear infinite !important; }
+.a-bees-hero { animation-name: bees-hero !important; }
+.a-bees-hand { animation-name: bees-hand !important; }
+.a-bees-clock { animation-name: bees-clock !important; }
+@keyframes bee-route {
+  0%, 30% { transform: translateY(0); }
+  40%, 70% { transform: translateY(-44px); }
+  80%, 100% { transform: translateY(0); }
+}
+@keyframes buzz {
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(1px, -1px); }
+}
+@keyframes bees-hero {
+  0%, 40% { transform: translateX(0); opacity: 1; }
+  54% { transform: translateX(80px); }
+  66%, 86% { transform: translateX(120px); opacity: 1; }
+  92% { transform: translateX(120px); opacity: 0; }
+  94% { transform: translateX(0); opacity: 0; }
+  100% { transform: translateX(0); opacity: 1; }
+}
+@keyframes bees-hand {
+  0%, 4% { opacity: 0; }
+  8% { opacity: 1; transform: translateY(0); }
+  12% { transform: translateY(3px) scale(0.92); }
+  16% { transform: translateY(0); }
+  22% { transform: translateY(3px) scale(0.92); }
+  26% { opacity: 1; transform: translateY(0); }
+  32%, 100% { opacity: 0; }
+}
+@keyframes bees-clock {
+  0%, 10% { opacity: 0; transform: scale(0.5); }
+  14%, 36% { opacity: 1; transform: scale(1); }
+  42%, 100% { opacity: 0; }
+}
+
+/* Puppy: boulder into the water, a stepping stone appears, walk across. */
+.a-push-hero { animation-name: push-hero !important; }
+.a-push-boulder { animation-name: push-boulder !important; }
+.a-push-stone { animation-name: push-stone !important; }
+.a-push-splash { animation-name: splash !important; }
+@keyframes push-hero {
+  0%, 10% { transform: translateX(0); opacity: 1; }
+  26%, 40% { transform: translateX(40px); }
+  70%, 88% { transform: translateX(120px); opacity: 1; }
+  94% { transform: translateX(120px); opacity: 0; }
+  95% { transform: translateX(0); opacity: 0; }
+  100% { transform: translateX(0); opacity: 1; }
+}
+@keyframes push-boulder {
+  0%, 10% { transform: translateX(0); opacity: 1; }
+  26% { transform: translateX(40px) scale(1); opacity: 1; }
+  34% { transform: translate(40px, 6px) scale(0.6); opacity: 0; }
+  95% { transform: translateX(0); opacity: 0; }
+  100% { transform: translateX(0); opacity: 1; }
+}
+@keyframes push-stone {
+  0%, 28% { opacity: 0; transform: scale(0.5); }
+  36%, 90% { opacity: 1; transform: scale(1); }
+  96%, 100% { opacity: 0; }
+}
+@keyframes splash {
+  0%, 27% { opacity: 0; transform: scale(0.5); }
+  31% { opacity: 1; transform: scale(1.1); }
+  40%, 100% { opacity: 0; }
+}
+
+/* Frog: hop over the gap. */
+.a-hop-hero { animation-name: hop-hero !important; }
+.a-hop-arc { animation-name: hop-arc !important; }
+@keyframes hop-hero {
+  0%, 14% { transform: translate(0, 0); opacity: 1; }
+  24% { transform: translate(40px, -26px); }
+  34% { transform: translate(80px, 0); }
+  40% { transform: translate(80px, -4px); }
+  44% { transform: translate(80px, 0); }
+  70%, 88% { transform: translate(140px, 0); opacity: 1; }
+  94% { transform: translate(140px, 0); opacity: 0; }
+  95% { transform: translate(0, 0); opacity: 0; }
+  100% { transform: translate(0, 0); opacity: 1; }
+}
+@keyframes hop-arc {
+  0%, 8% { opacity: 0; }
+  12%, 36% { opacity: 1; }
+  44%, 100% { opacity: 0; }
+}
+
+/* Duck: swim across. */
+.a-swim-hero { animation-name: swim-hero !important; }
+@keyframes swim-hero {
+  0%, 10% { transform: translateX(0); opacity: 1; }
+  74%, 88% { transform: translateX(150px); opacity: 1; }
+  94% { transform: translateX(150px); opacity: 0; }
+  95% { transform: translateX(0); opacity: 0; }
+  100% { transform: translateX(0); opacity: 1; }
+}
+
+/* Mole: dig through the hedge. */
+.a-dig-hero { animation-name: dig-hero !important; }
+.a-dig-hedge { animation-name: dig-hedge !important; }
+.a-dig-dirt { animation-name: dig-dirt !important; }
+.a-dig-bits { animation-name: dig-bits !important; }
+@keyframes dig-hero {
+  0%, 10% { transform: translateX(0); opacity: 1; }
+  22% { transform: translateX(24px); }
+  26% { transform: translateX(20px); }
+  30% { transform: translateX(24px); }
+  34% { transform: translateX(20px); }
+  70%, 88% { transform: translateX(140px); opacity: 1; }
+  94% { transform: translateX(140px); opacity: 0; }
+  95% { transform: translateX(0); opacity: 0; }
+  100% { transform: translateX(0); opacity: 1; }
+}
+@keyframes dig-hedge {
+  0%, 22% { transform: scale(1); opacity: 1; }
+  38%, 94% { transform: scale(0.2); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+@keyframes dig-dirt {
+  0%, 30% { opacity: 0; }
+  40%, 92% { opacity: 1; }
+  98%, 100% { opacity: 0; }
+}
+@keyframes dig-bits {
+  0%, 22% { opacity: 0; transform: translateY(6px) scale(0.6); }
+  30% { opacity: 1; transform: translateY(-6px) scale(1.1); }
+  40%, 100% { opacity: 0; transform: translateY(-12px); }
+}
+
+/* Offers: the video plays (its bar fills), then the reward pops out. */
+.demo-offer { --demo: 3.2s; }
+.a-tv-bar { animation-name: tv-bar !important; transform-origin: left center !important; }
+.a-tv-stop { animation: none !important; transform-box: fill-box; transform-origin: left center; transform: scaleX(0.45); }
+.a-tv-none { display: none; }
+.a-offer-arrow { animation-name: offer-arrow !important; }
+.a-reward { animation-name: reward-pop !important; }
+.a-skip-arc { animation-name: skip-arc !important; }
+.a-route { animation: route 1.2s linear infinite !important; }
+@keyframes tv-bar {
+  0% { transform: scaleX(0); }
+  55%, 100% { transform: scaleX(1); }
+}
+@keyframes offer-arrow {
+  0%, 50% { transform: translateX(-4px); opacity: 0.35; }
+  58% { transform: translateX(4px); opacity: 1; }
+  66%, 100% { transform: translateX(0); opacity: 1; }
+}
+@keyframes reward-pop {
+  0%, 56% { transform: scale(0.85); opacity: 0.55; }
+  64% { transform: scale(1.12); opacity: 1; }
+  72%, 100% { transform: scale(1); opacity: 1; }
+}
+@keyframes skip-arc {
+  0%, 56% { opacity: 0.3; }
+  64%, 100% { opacity: 1; }
+}
+@keyframes route {
+  to { stroke-dashoffset: -20; }
+}
+
+/* With reduced motion every story is shown frozen on its outcome. */
+@media (prefers-reduced-motion: reduce) {
+  .demo g[class^='a-'] {
+    animation-duration: var(--demo) !important;
+    animation-iteration-count: infinite !important;
+    animation-delay: calc(var(--demo) * -0.84) !important;
+    animation-play-state: paused !important;
+  }
+}
+
+/* Story cards */
+.intro-card {
+  width: min(94vw, 420px);
+  max-width: none;
+}
+
+.intro-stories {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+}
+
+.story {
+  position: relative;
+  width: 100%;
+  padding: 8px 10px 6px;
+  border: 3px solid var(--ink);
+  border-radius: 20px;
+  background: #e9f6ff;
+}
+
+.story .mech.small {
+  position: absolute;
+  left: -10px;
+  top: -12px;
+  width: 44px;
+  height: 44px;
+  padding: 4px;
+  border: 3px solid var(--ink);
+  border-radius: 14px;
+  background: #fff;
+  z-index: 1;
+}
+
+.intro-stories .plus {
+  font-size: 26px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.offer-story {
+  width: min(84vw, 320px);
+}
+
+.notice svg.demo {
+  width: 200px;
+}
+
+.notice svg.demo[viewBox='0 0 90 100'] {
+  width: 76px;
+}
+
+@media (orientation: landscape) and (max-height: 520px) {
+  .intro-card {
+    width: min(94vw, 640px);
+  }
+  .intro-stories {
+    flex-direction: row;
+  }
+  .story {
+    max-width: 300px;
+  }
+}

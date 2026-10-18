@@ -128,6 +128,11 @@ export function face(kind) {
   return svg(FACES[kind] ?? FACES.puppy);
 }
 
+/** The face drawing without its <svg> wrapper (64×64 units), for composing scenes. */
+export function faceBody(kind) {
+  return GENERIC[kind] ? genericFace(GENERIC[kind]) : FACES[kind] ?? FACES.puppy;
+}
+
 export function silhouette(kind) {
   const body = GENERIC[kind] ? genericFace(GENERIC[kind]) : FACES[kind] ?? '';
   return svg(`<g opacity="0.55">${body.replace(/fill="[^"]*"/g, 'fill="#55505e"')}</g>`);
@@ -154,7 +159,7 @@ export const UI = {
   play: svg(`<path d="M22 12 L50 32 L22 52Z" fill="currentColor" stroke="currentColor" stroke-width="4" stroke-linejoin="round"/>`),
   undo: svg(`<path d="M24 14 L12 26 L24 38" ${P}/><path d="M12 26 H38 a12 12 0 0 1 0 24 H28" ${P}/>`),
   restart: svg(`<path d="M48 32 a16 16 0 1 1 -5 -11.6" ${P}/><path d="M46 10 V22 H34" ${P}/>`),
-  map: svg(`<g fill="currentColor"><rect x="10" y="10" width="18" height="18" rx="4"/><rect x="36" y="10" width="18" height="18" rx="4"/><rect x="10" y="36" width="18" height="18" rx="4"/><rect x="36" y="36" width="18" height="18" rx="4"/></g>`),
+  map: svg(`<g stroke="${O}" stroke-width="2.5"><rect x="6" y="6" width="23" height="23" rx="5" fill="#fff3d6"/><rect x="35" y="6" width="23" height="23" rx="5" fill="#fff3d6"/><rect x="6" y="35" width="23" height="23" rx="5" fill="#fff3d6"/><rect x="35" y="35" width="23" height="23" rx="5" fill="#e8e4dc" stroke-dasharray="4 3"/></g><g fill="#ffc83d" stroke="${O}" stroke-width="1.5"><path d="M17.5 10 L20 15.5 L26 16 L21.5 20 L23 26 L17.5 23 L12 26 L13.5 20 L9 16 L15 15.5Z"/><path d="M46.5 10 L49 15.5 L55 16 L50.5 20 L52 26 L46.5 23 L41 26 L42.5 20 L38 16 L44 15.5Z"/><path d="M17.5 39 L20 44.5 L26 45 L21.5 49 L23 55 L17.5 52 L12 55 L13.5 49 L9 45 L15 44.5Z"/></g><rect x="42" y="45" width="10" height="8" rx="2" fill="${O}"/><path d="M44 45 V42 a3 3 0 0 1 6 0 V45" fill="none" stroke="${O}" stroke-width="2"/>`),
   soundOn: svg(`<path d="M12 24 H22 L34 14 V50 L22 40 H12Z" fill="currentColor"/><path d="M41 24 q5 8 0 16 M47 18 q10 14 0 28" ${P} stroke-width="4"/>`),
   soundOff: svg(`<path d="M12 24 H22 L34 14 V50 L22 40 H12Z" fill="currentColor"/><path d="M42 24 L54 40 M54 24 L42 40" ${P} stroke-width="4"/>`),
   musicOn: svg(`<path d="M26 44 V14 L50 9 V38" ${P} stroke-width="4.5"/><ellipse cx="20" cy="45" rx="7.5" ry="6" fill="currentColor"/><ellipse cx="44" cy="39" rx="7.5" ry="6" fill="currentColor"/>`),
@@ -178,10 +183,10 @@ export const UI = {
   hint: svg(`<path d="M32 6 C20 6 13 15 13 24 C13 32 19 36 22 42 H42 C45 36 51 32 51 24 C51 15 44 6 32 6Z" fill="#ffd84a" stroke="${O}" stroke-width="3" stroke-linejoin="round"/><rect x="22" y="44" width="20" height="6" rx="2" fill="#c8c4d0" stroke="${O}" stroke-width="2.5"/><rect x="25" y="51" width="14" height="6" rx="3" fill="#c8c4d0" stroke="${O}" stroke-width="2.5"/><path d="M26 22 Q28 16 34 15" ${P} stroke="#fff" stroke-width="3.5"/>`),
   // Rewarded-ad glyph: a play triangle inside a screen, used on every button that plays an ad.
   video: svg(`<rect x="6" y="12" width="52" height="40" rx="8" fill="#fff" stroke="${O}" stroke-width="3"/><path d="M26 22 L42 32 L26 42Z" fill="${O}" stroke="${O}" stroke-width="2" stroke-linejoin="round"/>`),
-  freeze: svg(`<circle cx="32" cy="32" r="26" fill="#d8f0ff" stroke="${O}" stroke-width="3"/><path d="M32 12 V52 M15 22 L49 42 M15 42 L49 22" ${P} stroke="#3a8fd6" stroke-width="4"/><path d="M26 15 L32 20 L38 15 M26 49 L32 44 L38 49" ${P} stroke="#3a8fd6" stroke-width="3"/>`),
-  trophy: svg(`<path d="M18 8 H46 V24 C46 34 40 40 32 40 C24 40 18 34 18 24Z" fill="#ffc83d" stroke="${O}" stroke-width="3" stroke-linejoin="round"/><path d="M18 14 H8 C8 24 12 28 18 28 M46 14 H56 C56 24 52 28 46 28" ${P} stroke="${O}" stroke-width="3"/><rect x="28" y="40" width="8" height="8" fill="#ffc83d" stroke="${O}" stroke-width="2.5"/><rect x="18" y="48" width="28" height="8" rx="2" fill="#9a6234" stroke="${O}" stroke-width="3"/>`),
+  freeze: svg(`<rect x="8" y="8" width="48" height="48" rx="10" fill="#cfeeff" stroke="${O}" stroke-width="3"/><path d="M32 16 C38 24 46 28 44 40 C43 48 37 50 32 50 C27 50 20 47 20 40 C20 33 26 31 27 24 C30 28 31 30 31 33 C34 29 34 22 32 16Z" fill="#ff7a2e" stroke="${O}" stroke-width="2" stroke-linejoin="round" opacity="0.9"/><path d="M14 14 L24 12 M14 14 L13 24" stroke="#fff" stroke-width="4" stroke-linecap="round"/><rect x="8" y="8" width="48" height="48" rx="10" fill="#bfe6ff" opacity="0.35"/>`),
+  trophy: svg(`<path d="M18 8 H46 V24 C46 34 40 40 32 40 C24 40 18 34 18 24Z" fill="#ffc83d" stroke="${O}" stroke-width="3" stroke-linejoin="round"/><path d="M18 14 H8 C8 24 12 28 18 28 M46 14 H56 C56 24 52 28 46 28" ${P} stroke="${O}" stroke-width="3"/><path d="M32 13 C35 18 39 20 38 26 C37 31 34 32 32 32 C30 32 26 31 26 26 C26 22 29 21 30 17 C31 19 32 20 32 22 C33 19 33 16 32 13Z" fill="#ff7a2e"/><rect x="28" y="40" width="8" height="8" fill="#ffc83d" stroke="${O}" stroke-width="2.5"/><rect x="18" y="48" width="28" height="8" rx="2" fill="#9a6234" stroke="${O}" stroke-width="3"/>`),
   share: svg(`<rect x="14" y="20" width="30" height="36" rx="5" fill="#fff" stroke="${O}" stroke-width="3"/><rect x="22" y="8" width="30" height="36" rx="5" fill="#bfe6f5" stroke="${O}" stroke-width="3"/><path d="M29 20 H45 M29 28 H45 M29 36 H39" ${P} stroke="${O}" stroke-width="3"/>`),
-  move: svg(`<path d="M32 6 V58 M6 32 H58" ${P} stroke-width="5"/><path d="M24 14 L32 6 L40 14 M24 50 L32 58 L40 50 M14 24 L6 32 L14 40 M50 24 L58 32 L50 40" ${P} stroke-width="5"/>`),
+  move: svg(`<path d="M6 50 H52 M44 42 L52 50 L44 58" ${P} stroke-width="4"/><g transform="translate(8 6)"><rect x="4" y="16" width="34" height="7" rx="2" fill="#c0843c" stroke="${O}" stroke-width="2.5"/><rect x="4" y="8" width="34" height="6" rx="2" fill="#c0843c" stroke="${O}" stroke-width="2.5"/><path d="M8 23 V32 M34 23 V32" stroke="${O}" stroke-width="3" stroke-linecap="round"/></g><path d="M40 2 a3.5 3.5 0 0 1 7 0 V12 l1.5 -0.7 a3.5 3.5 0 0 1 6.3 1.4 V20 c0 6 -5 9 -11 9 c-5 0 -8 -3 -10 -6 L30 17 a3.5 3.5 0 0 1 5.6 -4 L40 17Z" fill="#fff" stroke="${O}" stroke-width="2.5" stroke-linejoin="round"/>`),
   clock: svg(`<circle cx="32" cy="32" r="24" fill="#fff" stroke="${O}" stroke-width="3"/><path d="M32 18 V32 L42 38" ${P} stroke="${O}" stroke-width="4.5"/>`),
   weekly: svg(`<rect x="6" y="14" width="52" height="38" rx="6" fill="#fff" stroke="${O}" stroke-width="3"/><rect x="6" y="14" width="52" height="10" rx="4" fill="#3fa7d6" stroke="${O}" stroke-width="3"/><g fill="#ffc83d" stroke="${O}" stroke-width="2"><circle cx="16" cy="38" r="4.5"/><circle cx="32" cy="38" r="4.5"/><circle cx="48" cy="38" r="4.5"/></g>`),
   encore: svg(`<path d="M20 22 C10 22 6 28 6 32 C6 36 10 42 20 42 C30 42 34 22 44 22 C54 22 58 28 58 32 C58 36 54 42 44 42 C34 42 30 22 20 22Z" fill="none" stroke="#6a3fc8" stroke-width="7" stroke-linejoin="round"/>`),

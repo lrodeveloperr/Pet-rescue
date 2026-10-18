@@ -59,6 +59,8 @@ async function autoplay(page) {
     const sol = logic.solve(game.state);
     if (!sol.solved) return { won: false };
     for (const a of sol.actions) {
+      // A companion's first rescue shows its ability story; dismiss it like a player would.
+      if (game.ui.openOverlay === 'intro') game.closeIntro([]);
       if (a.startsWith('use:')) game.selectCompanion(a.slice(4));
       else game.swipe(a);
       await new Promise((r) => setTimeout(r, 15));
@@ -109,6 +111,12 @@ try {
   const lv = await page.evaluate(() => ({ cage: window.__petRescue.game.state.cage, exit: window.__petRescue.game.state.exit }));
   await tapTile(page, lv.cage);
   check(await page.evaluate(() => window.__petRescue.game.state.rescued), 'tapping the cage walks there and rescues the puppy');
+  check(await page.evaluate(() => Boolean(document.querySelector('.overlay.intro:not(.hidden) .demo-push'))), "the puppy's first rescue plays its push story");
+  await page.waitForTimeout(1500);
+  await shot(page, '01b-push-story');
+  await textless(page, 'companion story');
+  await page.click('.overlay.intro .btn', { force: true });
+  check(!(await visible(page, 'intro')), 'the play button closes the story');
   await tapTile(page, lv.exit);
   await winPanel(page);
   check((await page.locator('.overlay.win .win-stars .s.on').count()) === 3, 'efficient first rescue earns three stars');
@@ -215,7 +223,7 @@ try {
     game.startLevel(i);
     return game.ui.openOverlay === 'intro';
   });
-  check(introShown, 'a new element shows its intro card');
+  check(introShown && (await page.locator('.overlay.intro .demo-bees').count()) === 1, 'a new element plays its animated story');
   await page.waitForTimeout(500);
   await shot(page, '04-intro-bees');
   await textless(page, 'new-element card');
@@ -410,6 +418,7 @@ try {
   await ads.waitForTimeout(500);
   await shot(ads, '13-offer-skip');
   await textless(ads, 'rewarded offer');
+  check((await ads.locator('.overlay.offer .demo-offer').count()) === 1, 'the offer is a picture story: a video, then the reward');
   const described = await ads.evaluate(() => {
     const o = document.querySelector('.overlay.offer');
     return document.getElementById(o.getAttribute('aria-describedby'))?.textContent ?? '';

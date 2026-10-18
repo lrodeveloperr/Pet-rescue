@@ -17,10 +17,14 @@ A player who cannot read the displayed language must be able to start, move, rec
 
 ## No words on screen
 
-The whole game is textless on screen, not only the core loop. Every screen uses pictures, motion and digits:
+The whole game is textless on screen, not only the core loop. Every screen uses pictures, motion and digits. Pictures are not reduced to symbols to decode: where a rule or an offer needs explaining, it plays out as a short animated story on tiles drawn like the game (`src/demos.js`):
 
-- **Rewarded offers** are a picture: the ad glyph (a play button in a screen, on a lavender button colour used only for ads) → an arrow → the reward icon. Accept (the ad glyph) and decline (a cross) have the same shape and colour. Declining returns straight to play.
-- **Notices** are pictures: the ad glyph crossed out (no ad available), the ad glyph → a crossed-out gift (the ad was closed early, so no reward), and a crossed-out cloud (progress could not be saved or loaded; play continues). The save notice appears at most once per session.
+- **Companions:** the first rescue of each companion plays its ability: the puppy pushes a boulder into water and it becomes a stepping stone; the frog hops a gap; the duck swims across; the mole digs through a hedge.
+- **New elements:** one step onto ice and the rescuer slides to the tree; a current carries the swimmer downstream; a boulder on the plate lights the plate, a dotted line runs to the gate and the gate opens; a bridge falls behind the rescuer and a crossed-out arrow shows there is no way back; the mole goes into one burrow and out of its pair; the hand taps the rescuer to wait while the bee flies past, then the rescuer walks home.
+- With reduced motion, each story is shown frozen on its outcome.
+
+- **Rewarded offers** are stories: a video screen (lavender, the colour used only for ads) plays and its bar fills, an arrow pulses, and the exact reward pops out: this level's caged pet jumped over to the next level, the route drawn on a little board, the rescuer wearing the chosen hat, the calendar with +1, or the chosen animal. Accept (the video glyph) and decline (a cross) have the same shape and colour. Declining returns straight to play.
+- **Notices** are stories too: a video stopped half-way → a crossed-out gift (the ad was closed early, so no reward), a crossed-out video (no ad available), and a crossed-out cloud (progress could not be saved or loaded; play continues). The save notice appears at most once per session.
 - **The no-WebGL screen** is a crossed-out cube.
 - **Numbers** (moves and par, star totals, streak days, the countdown to the next daily, rescue counts) are digits. Digits are not tied to a language.
 
