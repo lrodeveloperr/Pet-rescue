@@ -107,13 +107,15 @@ test('findPath never pushes a boulder on the way to somewhere else', () => {
   assert.equal(findPath(s, 4 + 6), null);
 });
 
-test('rotating a map keeps every level solvable', async () => {
+test('rotating keeps every campaign level solvable in the same number of moves', async () => {
   const { LEVELS } = await import('../src/levels.js');
-  const { rotateMap, solve, COMPANIONS } = await import('../src/logic.js');
+  const { rotateLevel, solve, COMPANIONS } = await import('../src/logic.js');
   for (const def of LEVELS) {
-    const rotated = rotateMap(def.map);
-    assert.equal(rotated.length, Math.max(...def.map.map((r) => r.length)));
-    const st = createState(parseLevel({ id: def.id, map: rotated }), COMPANIONS);
-    assert.equal(solve(st).solved, true, `level ${def.id} rotated`);
+    const rotated = rotateLevel(def);
+    assert.equal(rotated.map.length, Math.max(...def.map.map((r) => r.length)));
+    const r = solve(createState(parseLevel(rotated), COMPANIONS));
+    const o = solve(createState(parseLevel(def), COMPANIONS));
+    assert.equal(r.solved, true, `${def.id} rotated`);
+    assert.equal(r.moves, o.moves, def.id);
   }
 });

@@ -1,5 +1,5 @@
-// Game controller: connects rules, 3D world, interface, audio and the host SDK.
-import { LEVELS } from './levels.js';
+// Game controller: connects rules, 3D world, interface, audio, ads and the host SDK.
+import { LEVELS, WORLDS, DAILY } from './levels.js';
 import {
   ABILITY,
   COMPANIONS,
@@ -7,17 +7,32 @@ import {
   DIRS,
   createState,
   findPath,
+  isWater,
   parseLevel,
-  rotateMap,
+  rotateLevel,
   setActive,
   solve,
   step,
 } from './logic.js';
 import { face, ability, UI } from './icons.js';
+import { ALL_ANIMALS } from './species.js';
+import { HATS } from './models.js';
+import { Ads, AD_POLICY } from './ads.js';
+import { Garden, nextDecoration, unlockedDecorations } from './garden.js';
+import {
+  dayKey,
+  dayNumber,
+  emptyProgress,
+  liveStreak,
+  migrate,
+  newlyEarnedHats,
+  recordDaily,
+  starsFor,
+  totalStars,
+} from './progress.js';
 import * as host from './host.js';
 import { t } from './i18n.js';
 
-const TUTORIAL_LEVELS = 4;
 const HINT_DELAY_TUTORIAL = 2500;
 const HINT_DELAY = 12000;
 const MAX_HISTORY = 400;
@@ -29,7 +44,8 @@ export class Game {
     this.world = world;
     this.ui = ui;
     this.audio = audio;
-    this.progress = { v: 1, owned: [], done: [], sound: true, music: true };
+    this.ads = new Ads();
+    this.progress = emptyProgress();
     this.queue = [];
     this.history = [];
     this.busy = false;
@@ -38,30 +54,23 @@ export class Game {
     this.pendingTap = null;
     this.hintTimer = null;
     this.goalKey = '';
+    this.mode = 'level';
+    this.mapWorld = 0;
   }
 
   // ---------- progress ----------
 
   async loadProgress() {
     try {
-      const raw = await host.loadData();
-      if (raw) {
-        const p = JSON.parse(raw);
-        const ids = new Set(LEVELS.map((l) => l.id));
-        this.progress = {
-          v: 1,
-          owned: COMPANIONS.filter((c) => Array.isArray(p.owned) && p.owned.includes(c)),
-          done: Array.isArray(p.done) ? p.done.filter((id) => ids.has(id)) : [],
-          sound: p.sound !== false,
-          music: p.music !== false,
-        };
-      }
+      this.progress = migrate(await host.loadData(), LEVELS.map((l) => l.id));
     } catch (err) {
       console.warn(err);
+      this.progress = emptyProgress();
       this.ui.toast(t('loadFailed'));
     }
     this.audio.setUserEnabled(this.progress.sound);
     this.audio.setMusicEnabled(this.progress.music);
+    this.world.setHat(this.progress.hats.worn);
   }
 
   async saveProgress() {
@@ -74,55 +83,92 @@ export class Game {
   }
 
   isDone(i) {
-    return this.progress.done.includes(LEVELS[i].id);
+    const id = LEVELS[i].id;
+    return id in this.progress.stars || this.progress.skipped.includes(id);
   }
 
   isUnlocked(i) {
     return i === 0 || this.isDone(i) || this.isDone(i - 1);
   }
 
+  completedCount() {
+    return Object.keys(this.progress.stars).length + this.progress.skipped.length;
+  }
+
   firstUnfinished() {
     const i = LEVELS.findIndex((_, k) => !this.isDone(k));
-    return i < 0 ? 0 : i;
+    return i < 0 ? LEVELS.length - 1 : i;
+  }
+
+  worldUnlocked(w) {
+    return this.isUnlocked(LEVELS.findIndex((l) => l.worldIndex === w));
+  }
+
+  get dailyUnlocked() {
+    return COMPANIONS.every((c) => this.progress.owned.includes(c));
   }
 
   // ---------- level flow ----------
 
+  /** Start campaign level `i`. */
   startLevel(i) {
     this.index = i;
+    this.daily = null;
     const def = LEVELS[i];
+    const firstTime = !this.isDone(i);
+    this.tutorial = firstTime && (def.worldIndex === 0 ? def.number <= 4 : def.number <= 2);
+    this.load(def, def.world, this.progress.owned, i);
+  }
+
+  /** Start today's daily puzzle (or a bonus one). */
+  startDaily(offset = 0) {
+    const def = this.dailyPuzzle(offset);
+    if (!def) return;
+    this.daily = { def, offset };
+    this.tutorial = false;
+    this.load(def, def.world, COMPANIONS, dayNumber());
+  }
+
+  load(def, world, owned, musicIndex) {
+    this.mode = 'level';
+    this.garden = null;
+    this.world.garden = null;
     const rows = def.map.length;
     const cols = Math.max(...def.map.map((r) => r.length));
     const portrait = window.innerHeight > window.innerWidth;
     // Turn the map to match the screen so it can be drawn as large as possible.
     const rotate = portrait ? cols > rows : rows > cols * 1.2;
-    this.level = parseLevel(rotate ? { ...def, map: rotateMap(def.map) } : def);
-    this.state = createState(this.level, this.progress.owned);
+    this.def = def;
+    this.level = parseLevel(rotate ? rotateLevel(def) : def);
+    this.state = createState(this.level, owned);
     this.history = [];
     this.queue = [];
     this.pendingTap = null;
     this.menuPaused = false;
     this.goalKey = '';
-    this.tutorial = i < TUTORIAL_LEVELS && !this.isDone(i);
     this.ui.hideOverlays();
     this.ui.hideHand();
     this.ui.setStuck(false);
-    this.world.loadLevel(this.level, this.state);
+    this.ui.setMode('level');
+    this.ui.setSkip(false);
+    this.world.loadLevel(this.level, this.state, world);
     this.world.setInsets(this.ui.insets());
     this.refresh();
-    this.audio.levelStart(i);
+    this.audio.levelStart(musicIndex);
     this.scheduleHint(this.tutorial ? 900 : HINT_DELAY);
+    this.scheduleSkipOffer();
   }
 
   refresh() {
     const s = this.state;
-    this.ui.setCompanions(s.owned, s.active, { swimming: s.t[s.p] === '~' });
+    this.ui.setCompanions(s.owned, s.active, { swimming: isWater(s.t[s.p]) });
     const goalKey = `${s.pet}|${s.rescued}`;
     if (goalKey !== this.goalKey) {
       this.goalKey = goalKey;
       this.ui.setGoal(s.pet, s.rescued);
     }
     this.ui.setUndoEnabled(this.history.length > 0);
+    this.ui.setStars(starsFor(s.turn, this.def.par), s.turn);
     this.world.setTargets(this.targets());
   }
 
@@ -134,15 +180,16 @@ export class Game {
     let candidates = [];
     if (kind === 'push') candidates = s.b;
     else {
-      const ch = { hop: '_', dig: 'H', swim: '~' }[kind];
-      for (let i = 0; i < s.t.length; i++) if (s.t[i] === ch) candidates.push(i);
+      const match = { hop: (c) => c === '_', dig: (c) => c === 'H', swim: isWater }[kind];
+      for (let i = 0; i < s.t.length; i++) if (match(s.t[i])) candidates.push(i);
       if (kind === 'swim') {
         // Only shore tiles, so the whole lake is not covered in rings.
         candidates = candidates.filter((i) =>
           DIR_NAMES.some((d) => {
             const x = (i % s.w) + DIRS[d].x;
             const y = Math.floor(i / s.w) + DIRS[d].y;
-            return x >= 0 && y >= 0 && x < s.w && y < s.h && s.t[y * s.w + x] !== '~' && s.t[y * s.w + x] !== '#';
+            const ch = s.t[y * s.w + x];
+            return x >= 0 && y >= 0 && x < s.w && y < s.h && !isWater(ch) && ch !== '#';
           }),
         );
       }
@@ -151,10 +198,22 @@ export class Game {
   }
 
   get inputBlocked() {
-    return this.menuPaused || this.hostPaused || this.ui.overlayOpen || !this.state || this.state.won;
+    return this.mode !== 'level' || this.menuPaused || this.hostPaused || this.ui.overlayOpen || !this.state || this.state.won;
   }
 
   // ---------- input ----------
+
+  /** A tap on the canvas: a tile in a level, a pet in the garden. */
+  pointerTap(x, y) {
+    this.audio.unlock();
+    if (this.mode === 'garden') {
+      if (this.ui.overlayOpen) return;
+      const pet = this.garden?.petAt(x, y);
+      if (pet) this.audio.voice(pet.kind);
+      return;
+    }
+    this.tap(this.world.tileAt(x, y));
+  }
 
   tap(i) {
     this.audio.unlock();
@@ -167,7 +226,11 @@ export class Game {
       return;
     }
     const s = this.state;
-    if (i === s.p) return;
+    if (i === s.p) {
+      // Tapping yourself waits one beat when bees patrol.
+      if (s.bees.length) this.swipe('wait');
+      return;
+    }
     const path = findPath(s, i);
     if (path) {
       this.world.tapAt(i);
@@ -228,7 +291,7 @@ export class Game {
 
   undo() {
     this.audio.unlock();
-    if (this.menuPaused || this.hostPaused || this.ui.overlayOpen) return;
+    if (this.mode !== 'level' || this.menuPaused || this.hostPaused || this.ui.overlayOpen) return;
     this.clearHint();
     if (!this.history.length) {
       this.ui.shake('btnUndo');
@@ -247,12 +310,29 @@ export class Game {
   restart() {
     this.audio.unlock();
     this.audio.play('undo');
-    this.startLevel(this.index);
+    if (this.daily) this.startDaily(this.daily.offset);
+    else this.startLevel(this.index);
   }
 
-  next() {
+  /** Continue after a win: an interstitial may play here, at a natural break. */
+  async next() {
     this.audio.play('ui');
-    if (this.index < LEVELS.length - 1) this.startLevel(this.index + 1);
+    if (this.daily || this.index >= LEVELS.length - 1) {
+      this.openMap();
+      return;
+    }
+    this.ui.hideOverlays();
+    await this.withAdPause(() => this.ads.maybeInterstitial(this.completedCount()));
+    this.startLevel(this.index + 1);
+  }
+
+  async withAdPause(fn) {
+    this.audio.setPaused(true);
+    try {
+      return await fn();
+    } finally {
+      this.audio.setPaused(this.hostPaused);
+    }
   }
 
   pushHistory(s) {
@@ -281,6 +361,7 @@ export class Game {
       // Undo or restart replaced the state while this step was animating.
       if (this.state !== r.state) break;
       if (r.kind === 'open') this.afterOpen(r);
+      if (r.caught) this.audio.play('stuck');
       this.refresh();
       if (r.state.won) {
         this.busy = false;
@@ -322,21 +403,26 @@ export class Game {
     switch (r.kind) {
       case 'walk':
       case 'win':
-        a.play('step', { surface });
+        a.play(r.drifted ? 'swim' : 'step', { surface: r.slid ? '=' : surface });
+        if (r.teleport) setTimeout(() => a.play('dig'), 120);
         break;
       case 'push':
         a.play('push');
         a.play('step', { surface });
-        if (r.result !== 'roll') setTimeout(() => a.play(r.result), 180);
+        if (r.result !== 'roll') setTimeout(() => a.play(r.result), 180 + 85 * (r.boulderPath.length - 1));
         break;
       case 'open':
         a.play('open');
         a.voice(r.state.pet, { delay: 0.3 });
         if (r.gained) a.stinger(ABILITY[r.gained], 0.9);
         break;
+      case 'wait':
+        a.play('tap');
+        break;
       default:
         a.play(r.kind);
     }
+    if (r.collapsed) setTimeout(() => a.play('fill'), 120);
   }
 
   afterOpen(r) {
@@ -353,7 +439,7 @@ export class Game {
     if (r.need) {
       const c = COMPANION_FOR[r.need];
       if (s.owned.includes(c)) {
-        const swimming = s.t[s.p] === '~';
+        const swimming = isWater(s.t[s.p]);
         this.ui.bubble(pos, swimming ? UI.cross : face(c), swimming ? 'cross' : 'need');
         if (!swimming) {
           this.ui.pulse(c);
@@ -362,6 +448,8 @@ export class Game {
       } else {
         this.ui.bubble(pos, UI.lock, 'lock');
       }
+    } else if (r.reason === 'gate') {
+      this.ui.bubble(pos, UI.plate, 'need');
     } else if (r.reason !== 'wall') {
       this.ui.bubble(pos, UI.cross, 'cross');
     }
@@ -380,7 +468,7 @@ export class Game {
       }
     }
     // Another companion could get there: point at it.
-    if (s.t[s.p] !== '~') {
+    if (!isWater(s.t[s.p])) {
       for (const c of s.owned) {
         if (c === s.active) continue;
         const alt = setActive(s, c);
@@ -395,9 +483,10 @@ export class Game {
       }
     }
     const tile = s.t[i];
-    const need = s.b.includes(i) ? 'push' : { _: 'hop', '~': 'swim', H: 'dig' }[tile];
+    const need = s.b.includes(i) ? 'push' : tile === '_' ? 'hop' : isWater(tile) ? 'swim' : tile === 'H' ? 'dig' : null;
     this.audio.play('blocked');
     if (need && !s.owned.includes(COMPANION_FOR[need])) this.ui.bubble(this.world.tileScreen(i, 0.9), UI.lock, 'lock');
+    else if (tile === 'g') this.ui.bubble(this.world.tileScreen(i, 0.9), UI.plate, 'need');
     else if (tile !== '#') this.ui.bubble(this.world.tileScreen(i, 0.9), UI.cross, 'cross');
     this.world.blocked(s, -1);
     this.scheduleHint(this.idleDelay());
@@ -422,29 +511,89 @@ export class Game {
 
   async onWin() {
     this.clearHint();
+    clearTimeout(this.skipTimer);
+    this.ui.setSkip(false);
     this.audio.play('win');
     // Everyone cheers: the rescued pet first, then the companion.
     const voices = [this.state.pet, this.state.active].filter((k, n, a) => k && a.indexOf(k) === n);
     voices.forEach((k, n) => this.audio.voice(k, { delay: 1.3 + n * 0.45 }));
-    const id = LEVELS[this.index].id;
-    const before = this.progress.owned;
+
+    const p = this.progress;
+    const starsBefore = totalStars(p);
+    const stars = starsFor(this.state.turn, this.def.par);
+    const before = p.owned;
     const gained = this.state.owned.find((c) => !before.includes(c)) ?? null;
-    const firstTime = !this.progress.done.includes(id);
-    this.progress.owned = COMPANIONS.filter((c) => before.includes(c) || this.state.owned.includes(c));
-    if (firstTime) this.progress.done.push(id);
+    p.owned = COMPANIONS.filter((c) => before.includes(c) || this.state.owned.includes(c));
+    p.rescued[this.state.pet] = (p.rescued[this.state.pet] ?? 0) + 1;
+    let streak = null;
+    if (this.daily) {
+      streak = recordDaily(p);
+    } else {
+      const id = this.def.id;
+      p.stars[id] = Math.max(p.stars[id] ?? 0, stars);
+      p.skipped = p.skipped.filter((x) => x !== id);
+      this.ads.levelCompleted();
+    }
+    const hats = newlyEarnedHats(p);
+    p.hats.unlocked.push(...hats);
+    const starsAfter = totalStars(p);
+    const decoration = unlockedDecorations(starsAfter).length > unlockedDecorations(starsBefore).length;
     this.saveProgress();
-    host.sendScore(this.progress.done.length);
+    host.sendScore(starsAfter);
     // The full escape and reunion play before anything else appears.
     setTimeout(() => {
       if (!this.state.won) return;
-      this.ui.showWin({ pet: this.state.pet, gained, hasNext: this.index < LEVELS.length - 1 });
+      this.ui.showWin({
+        pet: this.state.pet,
+        gained,
+        stars: this.daily ? 3 : stars,
+        hats,
+        decoration,
+        streak,
+        hasNext: !this.daily && this.index < LEVELS.length - 1,
+        dailyReady: this.dailyUnlocked && this.progress.daily.last !== dayKey(),
+      });
+      this.audio.calm();
     }, 500);
+  }
+
+  // ---------- skip offer (rewarded) ----------
+
+  scheduleSkipOffer() {
+    clearTimeout(this.skipTimer);
+    const policy = AD_POLICY.skipOffer;
+    if (this.daily || this.tutorial || this.index < policy.notBeforeLevel || !this.ads.available) return;
+    this.skipTimer = setTimeout(() => {
+      if (this.state && !this.state.won && this.mode === 'level') this.ui.setSkip(true);
+    }, policy.stuckSeconds * 1000);
+  }
+
+  offerSkip() {
+    this.audio.play('ui');
+    this.menuPaused = true;
+    this.clearHint();
+    this.ui.showOffer({ kind: 'skip', text: t('offerSkip'), onAccept: () => this.watchForSkip(), onDecline: () => this.resume() });
+  }
+
+  async watchForSkip() {
+    this.ui.hideOverlays();
+    const earned = await this.withAdPause(() => this.ads.rewarded('skip-level'));
+    if (!earned) {
+      this.ui.toast(t('adNoReward'));
+      this.resume();
+      return;
+    }
+    const id = this.def.id;
+    if (!(id in this.progress.stars) && !this.progress.skipped.includes(id)) this.progress.skipped.push(id);
+    this.saveProgress();
+    this.ui.setSkip(false);
+    this.startLevel(Math.min(LEVELS.length - 1, this.index + 1));
   }
 
   // ---------- menus ----------
 
   openPause() {
-    if (this.ui.overlayOpen) return;
+    if (this.ui.overlayOpen || this.mode !== 'level') return;
     this.menuPaused = true;
     this.clearHint();
     this.audio.play('ui');
@@ -457,6 +606,10 @@ export class Game {
     this.audio.menu(false);
     this.menuPaused = false;
     this.ui.hideOverlays();
+    if (this.mode === 'level' && this.state?.won) {
+      this.showWinAgain();
+      return;
+    }
     this.scheduleHint(this.idleDelay());
   }
 
@@ -478,38 +631,185 @@ export class Game {
     this.ui.showPause({ sound: this.progress.sound, music: this.progress.music });
   }
 
-  openMap() {
+  dailyPool() {
+    const open = WORLDS.filter((w) => this.worldUnlocked(w.index)).map((w) => w.key);
+    return DAILY.filter((d) => open.includes(d.world));
+  }
+
+  dailyPuzzle(offset = 0) {
+    const pool = this.dailyPool();
+    if (!pool.length) return null;
+    return pool[(dayNumber() * 31 + offset * 7) % pool.length];
+  }
+
+  dailyInfo() {
+    const p = this.progress;
+    const doneToday = p.daily.last === dayKey();
+    const bonusToday = p.daily.bonusDate === dayKey() ? p.daily.bonusCount : 0;
+    return {
+      unlocked: this.dailyUnlocked,
+      doneToday,
+      streak: liveStreak(p),
+      pet: this.dailyPuzzle(doneToday ? bonusToday + 1 : 0)?.pet ?? 'kitten',
+      canBonus: doneToday && this.ads.available,
+    };
+  }
+
+  openMap(worldIndex = null) {
     this.menuPaused = true;
     this.clearHint();
     this.audio.play('ui');
     this.audio.menu(true);
     this.ui.hideOverlays();
-    this.ui.showMap(
-      LEVELS.map((def, i) => ({
-        pet: parseLevel(def).pet,
-        done: this.isDone(i),
-        locked: !this.isUnlocked(i),
-        current: i === this.index,
+    if (worldIndex !== null) this.mapWorld = worldIndex;
+    else if (!this.daily && this.index !== undefined) this.mapWorld = LEVELS[this.index].worldIndex;
+    const w = WORLDS[this.mapWorld];
+    const first = LEVELS.findIndex((l) => l.worldIndex === this.mapWorld);
+    this.ui.showMap({
+      worlds: WORLDS.map((x) => ({
+        key: x.key,
+        locked: !this.worldUnlocked(x.index),
+        stars: x.levels.reduce((a, l) => a + (this.progress.stars[l.id] ?? 0), 0),
+        max: x.levels.length * 3,
       })),
-    );
+      world: this.mapWorld,
+      levels: w.levels.map((l, k) => {
+        const i = first + k;
+        return { pet: l.pet, stars: this.progress.stars[l.id] ?? 0, done: this.isDone(i), locked: !this.isUnlocked(i), current: i === this.index && !this.daily };
+      }),
+      daily: this.dailyInfo(),
+      totalStars: totalStars(this.progress),
+    });
   }
 
   closeMap() {
+    this.ui.hideOverlays();
+    if (this.mode === 'garden') return;
     if (this.state?.won) {
       this.audio.music?.setMuffled(false);
-      this.ui.hideOverlays();
-      this.onWinOverlayAgain();
+      this.menuPaused = false;
+      this.showWinAgain();
       return;
     }
     this.resume();
   }
 
-  onWinOverlayAgain() {
-    this.ui.showWin({ pet: this.state.pet, gained: null, hasNext: this.index < LEVELS.length - 1 });
+  showWinAgain() {
+    this.ui.showWin({
+      pet: this.state.pet,
+      gained: null,
+      stars: this.daily ? 3 : starsFor(this.state.turn, this.def.par),
+      hats: [],
+      hasNext: !this.daily && this.index < LEVELS.length - 1,
+    });
   }
 
-  chooseLevel(i) {
+  chooseLevel(k) {
+    const i = LEVELS.findIndex((l) => l.worldIndex === this.mapWorld) + k;
     if (this.isUnlocked(i)) this.startLevel(i);
+  }
+
+  playDaily() {
+    const info = this.dailyInfo();
+    if (!info.unlocked) return;
+    if (!info.doneToday) {
+      this.startDaily(0);
+      return;
+    }
+    if (!info.canBonus) return;
+    this.ui.showOffer({ kind: 'bonus', text: t('offerBonus'), onAccept: () => this.watchForBonus(), onDecline: () => this.openMap() });
+  }
+
+  async watchForBonus() {
+    this.ui.hideOverlays();
+    const earned = await this.withAdPause(() => this.ads.rewarded('bonus-daily'));
+    if (!earned) {
+      this.ui.toast(t('adNoReward'));
+      this.openMap();
+      return;
+    }
+    const p = this.progress;
+    if (p.daily.bonusDate !== dayKey()) {
+      p.daily.bonusDate = dayKey();
+      p.daily.bonusCount = 0;
+    }
+    p.daily.bonusCount++;
+    this.saveProgress();
+    this.startDaily(p.daily.bonusCount);
+  }
+
+  // ---------- garden, album and hats ----------
+
+  openGarden() {
+    this.audio.play('ui');
+    this.audio.menu(false);
+    this.audio.calm();
+    this.clearHint();
+    clearTimeout(this.skipTimer);
+    this.ui.hideOverlays();
+    this.mode = 'garden';
+    this.menuPaused = false;
+    const animals = ALL_ANIMALS.filter((k) => this.progress.rescued[k] || this.progress.owned.includes(k));
+    const stars = totalStars(this.progress);
+    this.garden = new Garden(this.world, { animals, stars });
+    this.world.garden = this.garden;
+    this.world.setHat(this.progress.hats.worn);
+    this.ui.setMode('garden');
+    this.ui.showGardenBar({
+      stars,
+      next: nextDecoration(stars),
+      canMystery: this.ads.available && HATS.some((h) => !this.progress.hats.unlocked.includes(h)),
+    });
+    this.world.setInsets(this.ui.insets());
+  }
+
+  leaveGarden() {
+    this.audio.play('ui');
+    this.openMap();
+  }
+
+  openAlbum() {
+    this.audio.play('ui');
+    this.ui.showAlbum(ALL_ANIMALS.map((kind) => ({ kind, count: this.progress.rescued[kind] ?? 0, owned: this.progress.owned.includes(kind) })));
+  }
+
+  openHats() {
+    this.audio.play('ui');
+    this.ui.showHats({ hats: HATS, unlocked: this.progress.hats.unlocked, worn: this.progress.hats.worn });
+  }
+
+  wearHat(hat) {
+    if (!this.progress.hats.unlocked.includes(hat)) {
+      this.audio.play('blocked');
+      return;
+    }
+    this.progress.hats.worn = this.progress.hats.worn === hat ? null : hat;
+    this.world.setHat(this.progress.hats.worn);
+    this.audio.play('select');
+    this.saveProgress();
+    this.openHats();
+  }
+
+  offerMysteryHat() {
+    this.audio.play('ui');
+    this.ui.showOffer({ kind: 'hat', text: t('offerHat'), onAccept: () => this.watchForHat(), onDecline: () => this.ui.hideOverlays() });
+  }
+
+  async watchForHat() {
+    this.ui.hideOverlays();
+    const earned = await this.withAdPause(() => this.ads.rewarded('mystery-hat'));
+    const locked = HATS.filter((h) => !this.progress.hats.unlocked.includes(h));
+    if (!earned || !locked.length) {
+      if (!earned) this.ui.toast(t('adNoReward'));
+      return;
+    }
+    const hat = locked[Math.floor(Math.random() * locked.length)];
+    this.progress.hats.unlocked.push(hat);
+    this.progress.hats.worn = hat;
+    this.world.setHat(hat);
+    this.saveProgress();
+    this.audio.stinger('hop');
+    this.ui.showHats({ hats: HATS, unlocked: this.progress.hats.unlocked, worn: hat, fresh: hat });
   }
 
   setHostPaused(v) {
@@ -552,12 +852,16 @@ export class Game {
       this.audio.voice(first.slice(4), { vol: 0.4 });
       return;
     }
+    if (first === 'wait') {
+      this.ui.showHand(this.world.tileScreen(s.p, 0.2));
+      return;
+    }
     // Point at the next action (push, dig, rescue, home...) or, if the plan switches
     // companion first, at the place where the switch is needed.
     let sim = s;
     let target = -1;
     for (const a of r.actions) {
-      if (a.startsWith('use:')) break;
+      if (a.startsWith('use:') || a === 'wait') break;
       const res = step(sim, a);
       target = res.destructive ? res.at : res.to;
       sim = res.state;

@@ -35,26 +35,31 @@ Never hide reward conditions behind an unexplained symbol. Optional rewarded off
 
 These are acceptance checks. The tester rows need real players and have not been run.
 
-## Evidence from the first build
+## Evidence from the build
 
 Automated, in `npm run smoke` (headless Chromium, production build):
 
-- A tutorial hand is shown on level 1.
-- Real taps walk to the cage, rescue the puppy and reach home.
-- A swipe on the canvas takes one step.
-- Undo reverts a move.
-- All 12 levels are completed through the game controller.
-- Progress survives a reload.
-- A blocked move shows a symbol bubble.
-- An unwinnable position highlights undo and restart.
-- No page errors occur.
+- **First level:** a tutorial hand is shown on level 1. Real taps rescue the puppy and reach home. Efficient play earns three stars.
+- **Controls:** a swipe on the canvas takes one step, and undo reverts it.
+- **Levels:** levels 1–12 are completed in par moves through the game controller. The first, middle and last level of every world are completed. A bee level is solved without a sting.
+- **Menus and collection:** the map, garden, album and hat picker work. Tapping a garden pet makes it hop.
+- **Daily and saving:** the daily puzzle starts a streak, progress survives a reload, and the win panel invites to the daily once it unlocks.
+- **Interstitial caps:** no interstitial in the first levels, one after three levels and the minimum time, and none straight after a rewarded ad.
+- **Rewarded offers:** the skip offer explains the ad and reward in words. An accepted rewarded ad skips the level or unlocks a hat. An unfinished one grants nothing and play continues, and "No thanks" returns straight to play.
+- **Feedback:** a blocked move shows a symbol bubble, and an unwinnable position highlights undo and restart.
+- **Errors:** no page errors occur.
 
 Implementation, not yet player-tested:
 
 - The core loop shows no text.
-- States use shape and motion cues as well as colour: dashed outlines and locks for unavailable companions, a raised button with a pointer for the active one, pulsing rings for usable targets, crosses for blocked moves.
-- All input works with one pointer.
+- States use shape and motion cues as well as colour:
+  - dashed outlines and locks for unavailable items;
+  - a raised button with a pointer for the active companion;
+  - pulsing rings for usable targets and crosses for blocked moves;
+  - dotted bee routes;
+  - gate posts sharing the plate's yellow ring;
+  - burrow pairs sharing a marker shape.
+- All input works with one pointer, including waiting for bees by tapping the rescuer.
 - The game is fully playable muted.
 - Buttons have accessible names.
-- Failure messages are localized in en, es, pt, fr and de.
-- The ad row does not apply yet, because no ads are implemented.
+- Ad offers and failure messages are localized in en, es, pt, fr and de.

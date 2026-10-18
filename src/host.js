@@ -3,6 +3,9 @@ const yt = typeof window !== 'undefined' ? window.ytgame : undefined;
 export const inPlayables = Boolean(yt && yt.IN_PLAYABLES_ENV);
 
 const SAVE_KEY = 'pet-rescue-progress-v1';
+const params = typeof location !== 'undefined' ? new URLSearchParams(location.search) : new URLSearchParams();
+// ?fakeads shows a stand-in ad outside YouTube for testing; ?fakeads=decline simulates a skipped reward.
+const fakeAds = params.has('fakeads') ? params.get('fakeads') || 'accept' : null;
 
 function safe(fn, fallback) {
   try {
@@ -63,4 +66,36 @@ export async function language() {
 
 export function logError() {
   if (inPlayables) safe(() => yt.health.logError());
+}
+
+// ---------- ads ----------
+
+export function adsAvailable() {
+  return (inPlayables && Boolean(yt.ads)) || Boolean(fakeAds);
+}
+
+export async function requestInterstitialAd() {
+  if (inPlayables && yt.ads?.requestInterstitialAd) return yt.ads.requestInterstitialAd();
+  if (fakeAds) return fakeAd('interstitial');
+  return undefined;
+}
+
+export async function requestRewardedAd(rewardId) {
+  if (inPlayables && yt.ads?.requestRewardedAd) return yt.ads.requestRewardedAd(rewardId);
+  if (fakeAds) return fakeAd('rewarded');
+  return false;
+}
+
+function fakeAd(kind) {
+  return new Promise((resolve) => {
+    const box = document.createElement('div');
+    box.className = 'fake-ad';
+    box.dataset.kind = kind;
+    box.textContent = `TEST AD (${kind})`;
+    document.body.append(box);
+    setTimeout(() => {
+      box.remove();
+      resolve(kind === 'rewarded' ? fakeAds !== 'decline' : undefined);
+    }, Number(params.get('fakeadms') || 1500));
+  });
 }

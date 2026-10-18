@@ -8,6 +8,7 @@ import { setLanguage, t } from './i18n.js';
 import * as logic from './logic.js';
 import { SoundEngine } from './sound.js';
 import { Music } from './music.js';
+import { LEVELS } from './levels.js';
 
 const KEY_DIRS = {
   ArrowUp: 'up', KeyW: 'up',
@@ -51,7 +52,16 @@ async function boot() {
     onNext: () => game.next(),
     onMap: () => game.openMap(),
     onCloseMap: () => game.closeMap(),
-    onLevel: (i) => game.chooseLevel(i),
+    onLevel: (k) => game.chooseLevel(k),
+    onWorld: (w) => game.openMap(w),
+    onDaily: () => game.playDaily(),
+    onGarden: () => game.openGarden(),
+    onLeaveGarden: () => game.leaveGarden(),
+    onAlbum: () => game.openAlbum(),
+    onHats: () => game.openHats(),
+    onWearHat: (h) => game.wearHat(h),
+    onMystery: () => game.offerMysteryHat(),
+    onSkip: () => game.offerSkip(),
     onSound: () => game.toggleSound(),
     onMusic: () => game.toggleMusic(),
   });
@@ -84,7 +94,7 @@ async function boot() {
   const release = (e) => {
     if (!press || press.id !== e.pointerId) return;
     const moved = Math.hypot(e.clientX - press.x, e.clientY - press.y);
-    if (!press.swiped && moved < 16 && e.type === 'pointerup') game.tap(world.tileAt(e.clientX, e.clientY));
+    if (!press.swiped && moved < 16 && e.type === 'pointerup') game.pointerTap(e.clientX, e.clientY);
     press = null;
   };
   canvas.addEventListener('pointerup', release);
@@ -98,12 +108,16 @@ async function boot() {
       game.swipe(KEY_DIRS[e.code]);
     } else if (COMPANION_KEYS[e.code]) {
       game.selectCompanion(COMPANION_KEYS[e.code]);
+    } else if (e.code === 'Space') {
+      e.preventDefault();
+      if (game.state?.bees.length) game.swipe('wait');
     } else if (e.code === 'KeyZ' || e.code === 'Backspace') {
       game.undo();
     } else if (e.code === 'KeyR') {
       game.restart();
     } else if (e.code === 'Escape' || e.code === 'KeyP') {
-      if (game.menuPaused) game.resume();
+      if (game.mode === 'garden') game.leaveGarden();
+      else if (game.menuPaused) game.resume();
       else game.openPause();
     }
   });
@@ -124,7 +138,14 @@ async function boot() {
   });
 
   host.gameReady();
-  if (new URLSearchParams(location.search).has('debug')) window.__petRescue = { game, world, ui, logic, SoundEngine, Music };
+  if (new URLSearchParams(location.search).has('debug')) {
+    // Test hooks: the level list and handy indices.
+    const levelIndex = {};
+    LEVELS.forEach((l, i) => (levelIndex[l.world] ??= i));
+    const levelIds = Object.fromEntries(LEVELS.map((l, i) => [l.id, i]));
+    const firstBeeLevel = LEVELS.findIndex((l) => l.bees?.length);
+    window.__petRescue = { game, world, ui, logic, SoundEngine, Music, LEVELS, levelIndex, levelIds, firstBeeLevel };
+  }
 }
 
 boot();

@@ -1,6 +1,6 @@
 # Pet Rescue: Borrow & Escape
 
-Status: brief, 18 October 2026, with a first playable build (see the README). Working title. The build has automated rule, level and browser tests only: no player testing, real-device measurement, upload or certification. Rendering engine: three.js (see Graphics engine and size budget).
+Status: brief, 18 October 2026, with a playable build (see the README): 300 campaign levels in six worlds, 260 daily puzzles, engagement systems and capped ads. Working title. The build has automated rule, level and browser tests only: no player testing, real-device measurement, upload or certification. Rendering engine: three.js (see Graphics engine and size budget).
 
 ## Product promise
 
@@ -34,13 +34,36 @@ Core gameplay must be understandable and completable without reading. Follow [TE
 
 Change route dependencies, obstacle interactions and meaningful companion choices. Revisit situations with new capabilities only where the available solution genuinely changes. Do not count palette changes, rarity labels or random seeds as separate gameplay content.
 
-Preserve earned companion ownership and meaningful progress through the selected host's supported save mechanism. The implementation contract still needs the exact progression catalogue, failure/retry rules, save schema and acceptance tests before build.
+Preserve earned companion ownership and meaningful progress through the selected host's supported save mechanism.
+
+Implemented on 18 October 2026, at the user's request to maximise engagement and variety:
+
+- **Worlds:** six worlds of 50 levels. Each world after the Meadow adds one mechanic that changes routes: river currents, ice, plates and gates, crumbling bridges, and mole burrows with patrolling bees.
+- **Level checks:** every level is solver-verified to depend on its mechanic and on its companions. Duplicate maps are removed even when rotated or mirrored.
+- **Daily puzzle and streak:** a daily puzzle drawn from a separate pool of 260.
+- **Stars and garden:** stars against par moves, a pet garden with star-unlocked decorations, and an album of all 32 animals.
+- **Hats:** cosmetic hats.
+- **Not counted as gameplay content:** palette changes and new animals are collection rewards, not puzzle variety.
 
 ## Advertising boundaries
 
 The full escape and reunion/capability reveal precede any eligible next-round interruption. A single optional checkpoint continue after a substantial failed attempt is a proposal to assess; basic ability acquisition remains earned through play.
 
-First/subsequent cadence, active-time gates and reward entitlements are not finalized in this brief. Do not import Toybox or Haircut thresholds automatically or implement monetization changes without authorization. No banners. Ordinary play must remain usable after cancellation, error or no fill. Never grant an unverified reward or stack rewarded followed by an interstitial.
+No banners. Ordinary play must remain usable after cancellation, error or no fill. Never grant an unverified reward or stack rewarded followed by an interstitial. Do not import Toybox or Haircut thresholds automatically.
+
+On 18 October 2026 the user approved this policy to maximise ad revenue. It is implemented in `src/ads.js`, where every cap can be tuned:
+
+- **Interstitials:**
+  - only when the player presses *next* after the full escape and celebration;
+  - none in the first three completed levels;
+  - at most one per three levels *and* three minutes, whichever is later;
+  - none within 90 seconds after a rewarded ad.
+- **Rewarded, voluntary, with localized text naming the ad, the reward and a decline button:**
+  - *skip level:* offered after three minutes on a level, from level 5; the skipped level can still be completed for stars;
+  - *mystery hat:* cosmetic;
+  - *one bonus daily puzzle:* after the day's puzzle.
+
+Hints, undo and restart stay free, so no ad is ever needed to progress. The caps are starting values to be tuned from YouTube analytics after onboarding.
 
 ## Graphics engine and size budget
 
@@ -96,21 +119,32 @@ The main risk is selection friction: too many capabilities, unclear affordances 
 
 ## Implementation boundary
 
-The first build implements the core loop with four companions (puppy push, frog hop, duck swim, mole dig), 12 levels and eight further friends to rescue. It also includes the Playables lifecycle, saving and textless guidance. Automated tests prove that:
+The build implements:
 
-- every level is solvable with the companions available when it is first played;
-- each introduction level needs its new ability for the escape;
-- every later level needs at least two companions.
+- the core loop with four companions (puppy push, frog hop, duck swim, mole dig);
+- six worlds of 50 levels and 260 daily puzzles;
+- 32 rescuable animals;
+- stars, daily streaks, a pet garden, an album and hats;
+- capped interstitial and rewarded ads;
+- the Playables lifecycle, saving and textless guidance.
 
-Levels 8 and 11 can be made unwinnable; undo and restart recover them.
+Automated tests prove that:
+
+- every level is solvable with the companions available when it is first played, in exactly its par moves;
+- each companion's introduction level needs that companion;
+- every later world's levels use that world's mechanic;
+- no map repeats, even rotated or mirrored.
+
+Some levels can be made unwinnable; undo and restart recover them, and the game highlights both when it happens.
 
 Still open:
 
-- an ad policy, so no ads are implemented;
-- localization beyond failure messages in five languages;
-- real-device performance;
+- player testing of difficulty and fun;
 - the human acceptance checks in [TEXTLESS_GAMEPLAY.md](TEXTLESS_GAMEPLAY.md);
-- more content;
-- upload and certification.
+- real-device performance;
+- localization beyond ad offers and failure messages in five languages;
+- tuning the ad caps from analytics;
+- how YouTube classifies a pet game for child audiences, which can restrict ads;
+- Playables onboarding, upload and certification.
 
 Preserve user-approved decisions, including three.js as the rendering engine.

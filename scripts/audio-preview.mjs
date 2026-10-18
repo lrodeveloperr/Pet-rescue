@@ -42,7 +42,7 @@ const result = await page.evaluate(async () => {
   mark('blocked move', 0.3, (t) => e.blocked(t));
   mark('undo', 0.3, (t) => e.undo(t));
   mark('level became unwinnable', 1.4, (t) => e.stuck(t));
-  for (const kind of ['puppy', 'frog', 'duck', 'mole', 'kitten', 'bunny', 'piglet', 'chick', 'hamster', 'lamb', 'fox', 'panda']) {
+  for (const kind of ['puppy', 'frog', 'duck', 'mole', 'kitten', 'bunny', 'piglet', 'chick', 'hamster', 'lamb', 'fox', 'panda', 'hoot', 'moo', 'neigh', 'crow', 'howl']) {
     mark(`voice: ${kind}`, 0.6, (t) => e.voice(kind, { at: t }));
   }
   for (const a of ['push', 'hop', 'swim', 'dig']) mark(`ability stinger: ${a}`, 1.9, (t) => e.stinger(a, t));

@@ -2,6 +2,7 @@
 // Sound only reinforces what the screen already shows.
 import { SoundEngine } from './sound.js';
 import { Music } from './music.js';
+import { voiceOf } from './species.js';
 
 const IDLE_CALM_MS = 10000;
 
@@ -125,7 +126,7 @@ export class Audio {
 
   voice(kind, opts = {}) {
     if (!this.ready) return;
-    this.engine.voice(kind, { at: this.ctx.currentTime + (opts.delay ?? 0), vol: opts.vol ?? 1 });
+    this.engine.voice(voiceOf(kind), { at: this.ctx.currentTime + (opts.delay ?? 0), vol: opts.vol ?? 1 });
   }
 
   stinger(ability, delay = 0) {

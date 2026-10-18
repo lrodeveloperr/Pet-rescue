@@ -315,6 +315,21 @@ export class SoundEngine {
           this.tone({ type: 'triangle', freq: 800 * p, points: [[0.05, 1400 * p], [0.12, 700 * p]], at: at + dt, dur: 0.13, vol: 0.18 * v });
         }
         break;
+      case 'hoot':
+        for (const dt of [0, 0.32]) this.tone({ freq: 420 * p, to: 380 * p, at: at + dt, dur: 0.26, vol: 0.2 * v, attack: 0.04, filter: { type: 'lowpass', freq: 900 } });
+        break;
+      case 'moo':
+        this.tone({ type: 'sawtooth', freq: 150 * p, points: [[0.15, 175 * p], [0.6, 135 * p]], at, dur: 0.65, vol: 0.22 * v, attack: 0.06, filter: { type: 'lowpass', freq: 700, q: 3 } });
+        break;
+      case 'neigh':
+        this.tone({ type: 'sawtooth', freq: 700 * p, points: [[0.08, 950 * p], [0.45, 500 * p]], at, dur: 0.5, vol: 0.16 * v, filter: { type: 'bandpass', freq: 1300, q: 2 }, vibrato: { rate: 18, depth: 40 } });
+        break;
+      case 'crow':
+        this.tone({ type: 'sawtooth', freq: 600 * p, points: [[0.1, 900 * p], [0.3, 950 * p], [0.55, 700 * p]], at, dur: 0.6, vol: 0.16 * v, filter: { type: 'bandpass', freq: 1500, q: 2.5 } });
+        break;
+      case 'howl':
+        this.tone({ type: 'triangle', freq: 500 * p, points: [[0.2, 750 * p], [0.6, 650 * p]], at, dur: 0.7, vol: 0.16 * v, attack: 0.08, vibrato: { rate: 5, depth: 8 } });
+        break;
       case 'panda':
         this.tone({ type: 'triangle', freq: 240 * p, to: 210 * p, at, dur: 0.3, vol: 0.24 * v, filter: { type: 'lowpass', freq: 800 }, vibrato: { rate: 5, depth: 6 } });
         this.tone({ type: 'triangle', freq: 200 * p, to: 170 * p, at: at + 0.33, dur: 0.2, vol: 0.18 * v, filter: { type: 'lowpass', freq: 700 } });
