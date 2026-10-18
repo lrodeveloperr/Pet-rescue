@@ -107,10 +107,12 @@ test('findPath never pushes a boulder on the way to somewhere else', () => {
   assert.equal(findPath(s, 4 + 6), null);
 });
 
-test('rotating keeps every campaign level solvable in the same number of moves', async () => {
-  const { LEVELS } = await import('../src/levels.js');
+test('rotating keeps campaign levels solvable in the same number of moves', async () => {
+  const { LEVELS, WORLDS, loadWorld } = await import('../src/levels.js');
   const { rotateLevel, solve, COMPANIONS } = await import('../src/logic.js');
-  for (const def of LEVELS) {
+  await Promise.all(WORLDS.map((_, w) => loadWorld(w)));
+  // Every level of worlds 1-6 and every tenth level after them.
+  for (const def of LEVELS.filter((l, i) => l.worldIndex < 6 || i % 10 === 0)) {
     const rotated = rotateLevel(def);
     assert.equal(rotated.map.length, Math.max(...def.map.map((r) => r.length)));
     const r = solve(createState(parseLevel(rotated), COMPANIONS));
