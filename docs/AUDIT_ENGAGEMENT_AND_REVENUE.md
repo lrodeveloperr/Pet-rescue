@@ -24,10 +24,10 @@ The game is strongest where the evidence is strongest about doing no harm:
 
 Its weaknesses are, in order of impact:
 
-1. **The puzzles, which the research says carry retention, are the weakest part.** Difficulty is flat. The hardest levels arrive in the first session. Half of all obstacles are clutter. Outside the first world, most levels need only one companion, which removes the game's defining choice.
-2. **Return hooks are thin.** The streak breaks with no repair. Players get different daily puzzles on the same day. No end screen shows the next goal. Nothing exists after level 300.
-3. **There are few rewarded placements, and one is a policy risk.** Free help leaves only three: skip, a random hat (risky under minors guidance) and a bonus daily (uncapped).
-4. **Four certification risks:** a master mute button, a save-error message that could repeat for every signed-out player, an unguarded zero-size first viewport, and missing listing assets.
+1. **The puzzles, which the research says carry retention, are the weakest part.** Difficulty is flat. The hardest levels arrive in the first session. Half of all obstacles are clutter. Outside the first world, most levels need only one companion, which removes the game's defining choice.<br>→ **Done.** The pause menu keeps only music (and vibration where supported); old saves' sound setting is ignored.
+2. **Return hooks are thin.** The streak breaks with no repair. Players get different daily puzzles on the same day. No end screen shows the next goal. Nothing exists after level 300.<br>→ **Done.** Hint, idle and skip timers stop during host pause, ads and menus, and resume with their remaining time.
+3. **There are few rewarded placements, and one is a policy risk.** Free help leaves only three: skip, a random hat (risky under minors guidance) and a bonus daily (uncapped).<br>→ **Done.** At most once per session, and never for a player who never had a save. The notice is a picture.
+4. **Four certification risks:** a master mute button, a save-error message that could repeat for every signed-out player, an unguarded zero-size first viewport, and missing listing assets.<br>→ **Done.** Layout waits for a real size, the frame loop catches size changes without a resize event, and the map is re-laid for the new orientation if no move was made. Smoke-tested with a 1×1 first viewport.
 
 ## Measured level facts
 
@@ -153,63 +153,63 @@ Effort: S is under half a day, M is 1–2 days, L is 3 or more days.
 2. Pause or cancel hint and skip-offer timers on host pause and around ads (P3, M16). S
 3. Show the save-failure toast at most once per session, and never for signed-out empty saves (P4). S
 4. Guard `fit()` and `resize()` against a 0×0 first viewport (P5). S
-5. Hide rewarded offers after repeated no-fill and show a wordless unavailable state (P10, M14). S
-6. Replace the random mystery hat with choose-your-hat (L9). S
-7. Style "Watch ad" and "No thanks" equally, and give rewarded buttons a distinct colour and video glyph unlike Next (L3, M6). S
-8. Produce listing assets: thumbnails in every ratio from real gameplay, an all-ages description and accessibility tags (P7, L1). M
-9. Re-check every certification item against the live Playables docs, since the research only saw summaries. S
+5. Hide rewarded offers after repeated no-fill and show a wordless unavailable state (P10, M14). S<br>→ **Done.** Two failures in a row hide offers for the session; failures show a wordless notice.
+6. Replace the random mystery hat with choose-your-hat (L9). S<br>→ **Done.** The player picks a locked star hat first; streak hats are never sold.
+7. Style "Watch ad" and "No thanks" equally, and give rewarded buttons a distinct colour and video glyph unlike Next (L3, M6). S<br>→ **Done.** Both offer buttons share one style; every ad button is lavender with a video glyph, unlike the yellow Next.
+8. Produce listing assets: thumbnails in every ratio from real gameplay, an all-ages description and accessibility tags (P7, L1). M<br>→ **Done, pending the portal's exact sizes.** `listing/` has gameplay thumbnails in 16:9, 1:1, 9:16 and 4:3 with no text or logos (`scripts/listing.mjs`); copy and tags are in `docs/LISTING.md`.
+9. Re-check every certification item against the live Playables docs, since the research only saw summaries. S<br>→ **Partly.** The documentation host is unreachable from this environment, so the re-check used search results. It found two more requirements, both now implemented: a toggle for haptics, and Esc closing every dialog. A full read of the live pages is still needed before submission.
 
 ### P1: puzzle quality (largest engagement impact)
 
-10. Move or shorten hand-made levels 8, 11 and 12 (33–39 moves) out of the first session (E2, E3). S
-11. Strip obstacles the solution never touches, keeping at most 1–2 deliberate decoys per level (E8). M
-12. Make each level feature specific companions and require exactly those; aim for at least half the levels in worlds 2–6 needing 2 or more companions, to restore the core choice (E5, brief). M
-13. Add the "greedy route fails" and "few near-par solutions" checks to the generator (E6). M
-14. Score difficulty structurally (dead-position density, irreversible actions, required switches, congestion) and re-curate each world into a true sawtooth, with short hard levels and later worlds harder than the first (E1, E3, E7). M
-15. Hand-make the first two levels of each world as forced single-route lessons for its mechanic, plus the wait action for bees (E9). M
-16. Add a new element or combination about every 10 levels: mechanic mixes in later worlds, and variants such as two-plate gates, bridges over water, ice with currents or bees over ice (E15). L
-17. Cut the 50/50 dead-position rate in Canyon and 46/50 in Farm: prefer layouts where mistakes are recoverable, and keep dead positions for spike levels (E2, E12). M
-18. Hints: a hint button with three escalating stages, offered (pulsing) after idle time instead of auto-shown; no auto-hint for players who have not asked (E13). M
-19. Mark par on the star meter so players know the target (E14). S
-20. Playtest 10–20 people, or run a web-portal build with telemetry; prune the bottom 10–20% of levels by abandon versus pass time (E4, R1). M
+10. Move or shorten hand-made levels 8, 11 and 12 (33–39 moves) out of the first session (E2, E3). S<br>→ **Done.** Hand-made levels 8, 11 and 12 moved to the daily pool; level 9 (26 moves) is now a meadow spike at level 19.
+11. Strip obstacles the solution never touches, keeping at most 1–2 deliberate decoys per level (E8). M<br>→ **Done.** The generator strips every obstacle the solution never touches when the puzzle (par, required companions, required mechanics) stays the same.
+12. Make each level feature specific companions and require exactly those; aim for at least half the levels in worlds 2–6 needing 2 or more companions, to restore the core choice (E5, brief). M<br>→ **Done.** Each level features specific companions and requires exactly those. See the measured table below for the share needing two or more.
+13. Add the "greedy route fails" and "few near-par solutions" checks to the generator (E6). M<br>→ **Partly.** The meadow requires a real detour over the obstacle-free route, and a limited-search agent scores how hard a level is to find. A count of near-par solutions was not added.
+14. Score difficulty structurally (dead-position density, irreversible actions, required switches, congestion) and re-curate each world into a true sawtooth, with short hard levels and later worlds harder than the first (E1, E3, E7). M<br>→ **Done.** Difficulty combines required companions, switches, irreversible actions, dead-position share, the limited agent, search size, par and detour; each 10-level segment rises to a short spike (par ≤ 22) and then a breather.
+15. Hand-make the first two levels of each world as forced single-route lessons for its mechanic, plus the wait action for bees (E9). M<br>→ **Partly.** Each world opens with two generated lesson levels (small, short, almost no dead positions) and an intro card, and bees get a lesson in the meadow. They were generated to these limits rather than hand-made, and their single route was not verified.
+16. Add a new element or combination about every 10 levels: mechanic mixes in later worlds, and variants such as two-plate gates, bridges over water, ice with currents or bees over ice (E15). L<br>→ **Partly.** Every world after the first adds a new mix about every 10 levels (for example currents with bees, ice with currents, gates with ice, bridges with gates, burrows with bridges), each opened by an intro card. New sub-variants (two-plate gates, bridges over water) were not added.
+17. Cut the 50/50 dead-position rate in Canyon and 46/50 in Farm: prefer layouts where mistakes are recoverable, and keep dead positions for spike levels (E2, E12). M<br>→ **Done.** The share of reachable positions that are dead is capped per level: 5% in lessons (35% in the bridge lessons, where every crossing destroys a bridge), 30% in Canyon and 20% elsewhere. See the measured table below.
+18. Hints: a hint button with three escalating stages, offered (pulsing) after idle time instead of auto-shown; no auto-hint for players who have not asked (E13). M<br>→ **Done.** A hint button with three stages; after idle time it pulses. Only tutorial and lesson levels show the hand by themselves.
+19. Mark par on the star meter so players know the target (E14). S<br>→ **Done.** The star meter shows moves/par.
+20. Playtest 10–20 people, or run a web-portal build with telemetry; prune the bottom 10–20% of levels by abandon versus pass time (E4, R1). M<br>→ **Needs people.** Not possible here. A limited-search agent and a dead-position share stand in for difficulty until a playtest or a web-portal build with telemetry exists.
 
 ### P2: retention and return hooks
 
-21. One global daily puzzle per date for everyone, drawn from the whole pool once all companions are rescued (R6). S
-22. Daily: an information-only countdown to the next puzzle and a calendar history of solved days (R6). M
-23. Streak freezes, earned free (one per 3 dailies, cap 2–3) and used automatically (R2, L7). S
-24. Show the best streak and a fresh-start flame after a break, with no loss message (R3). S
-25. Streak milestones beyond day 14 (21, 30, 50, 100) with new hats or decorations (R5, R13). S
-26. Show how every locked hat is earned (star count or streak days) in the picker (R5). S
-27. Win panel: a progress bar to the nearest goal (decoration, hat, album set, streak), starting partly filled, with the next goal shown straight after each reward (R7, E11). M
-28. Win panel: tease what comes next (next world's mechanic, next new animal) (E11). S
-29. Album sets by world, with a permanent reward per completed set (R12). S
-30. Lower the decoration thresholds so all twelve are reachable with mostly 2-star play (E14, R11). S
-31. "World complete" moment: a garden visit, a new-world reveal and a natural stopping point (L13, E11). M
-32. Post-campaign content: weekly rotating sets, endless generated puzzles after level 300, and refilling the daily pool before day 260 (R13). M
-33. More rescue novelty: each world rescues only 4 species, each about 12 times. Add per-world variants (colours or accessories) as album entries and give each rescue a new name or look (R12). M
-34. Garden agency: let players place unlocked decorations, and let rescued animals wear hats (light meta, never blocking) (R11). M
-35. Shareable daily result as emoji text, only if the Playables frame allows clipboard access (R6). S, after verifying
+21. One global daily puzzle per date for everyone, drawn from the whole pool once all companions are rescued (R6). S<br>→ **Done.** The puzzle depends only on the date.
+22. Daily: an information-only countdown to the next puzzle and a calendar history of solved days (R6). M<br>→ **Done.** A countdown chip and a four-week calendar of solved and frozen days.
+23. Streak freezes, earned free (one per 3 dailies, cap 2–3) and used automatically (R2, L7). S<br>→ **Done.** One per three dailies, up to two, used automatically for missed days.
+24. Show the best streak and a fresh-start flame after a break, with no loss message (R3). S<br>→ **Done.** The best streak shows when it beats the current one; a broken streak shows a bobbing flame at 0 with no loss message.
+25. Streak milestones beyond day 14 (21, 30, 50, 100) with new hats or decorations (R5, R13). S<br>→ **Done.** Streak hats at 21, 30, 50 and 100 days (sun hat, antlers, space helmet, unicorn horn).
+26. Show how every locked hat is earned (star count or streak days) in the picker (R5). S<br>→ **Done.** Every locked hat shows its star or streak requirement.
+27. Win panel: a progress bar to the nearest goal (decoration, hat, album set, streak), starting partly filled, with the next goal shown straight after each reward (R7, E11). M<br>→ **Done.** The bar fills from where it stood before the win; the nearest unearned goal is chosen after each reward.
+28. Win panel: tease what comes next (next world's mechanic, next new animal) (E11). S<br>→ **Done.** The win panel previews a new world (with its mechanic), a new element or a new animal.
+29. Album sets by world, with a permanent reward per completed set (R12). S<br>→ **Done.** Six world sets; each complete set adds a souvenir to the garden.
+30. Lower the decoration thresholds so all twelve are reachable with mostly 2-star play (E14, R11). S<br>→ **Done.** Thresholds now end at 600 stars.
+31. "World complete" moment: a garden visit, a new-world reveal and a natural stopping point (L13, E11). M<br>→ **Done.** The last level of each world shows the world icon with a check, its stars, the next world and a highlighted garden button.
+32. Post-campaign content: weekly rotating sets, endless generated puzzles after level 300, and refilling the daily pool before day 260 (R13). M<br>→ **Done.** Weekly sets of five, an encore track after level 300 that never ends (each lap is turned half a turn), and a daily pool of more than a year.
+33. More rescue novelty: each world rescues only 4 species, each about 12 times. Add per-world variants (colours or accessories) as album entries and give each rescue a new name or look (R12). M<br>→ **Done.** Three looks per species (normal, gold and lavender), shown in the album; rescues of a new look are celebrated. Individual names were not added, to stay textless.
+34. Garden agency: let players place unlocked decorations, and let rescued animals wear hats (light meta, never blocking) (R11). M<br>→ **Done.** A move mode places decorations and souvenirs; tapping a pet in that mode tries on hats. Both are saved.
+35. Shareable daily result as emoji text, only if the Playables frame allows clipboard access (R6). S, after verifying<br>→ **Done, pending a check in the Playables frame.** Shown only where the clipboard is available; the text has no link.
 
 ### P3: revenue (within policy)
 
-36. Rewarded "super hint": the full path (hint stage 3), with stages 1–2 free; 1-minute cooldown (M10, M13). S, after item 18
-37. An earlier, targeted skip offer: after 2 minutes, or after 3 restarts on dead-position-heavy levels (M10). S
-38. Rewarded "bonus friend": rescue an extra variant animal for the album or garden after a level, opt-in and non-random (choose from 3) (M10). M
-39. Daily cap of 6 rewarded views and at most 2 bonus dailies; smaller rewards on repeats (M13). S
-40. No interstitial at the break after any rewarded view, and none after a struggle level (M8, M9). S
-41. Guard Next for 400 ms after the win panel appears (M6). S
-42. Test a 5-minute first-session floor, and separately a 2-minute cap, on a web portal for 14+ days before changing Playables (M4, M5, M1). M
-43. Optionally, an interstitial at world transitions (a natural loading break), counted inside the same caps (M3). S
+36. Rewarded "super hint": the full path (hint stage 3), with stages 1–2 free; 1-minute cooldown (M10, M13). S, after item 18<br>→ **Done.** Stages 1–2 free, stage 3 rewarded (free when ads are unavailable), one-minute cooldown.
+37. An earlier, targeted skip offer: after 2 minutes, or after 3 restarts on dead-position-heavy levels (M10). S<br>→ **Done.** After 2 minutes of active play or 3 restarts, from level 5.
+38. Rewarded "bonus friend": rescue an extra variant animal for the album or garden after a level, opt-in and non-random (choose from 3) (M10). M<br>→ **Done.** After a win (from level 6), the player picks one of three missing looks, then watches; once per win.
+39. Daily cap of 6 rewarded views and at most 2 bonus dailies; smaller rewards on repeats (M13). S<br>→ **Partly.** The cap of six rewarded views a day and two bonus dailies are done. Repeat rewards are not made smaller, because each reward is a single item (a hat, a look, a puzzle), not a currency.
+40. No interstitial at the break after any rewarded view, and none after a struggle level (M8, M9). S<br>→ **Done.**
+41. Guard Next for 400 ms after the win panel appears (M6). S<br>→ **Done.** Rewarded buttons on the win panel and offer cards have the same guard.
+42. Test a 5-minute first-session floor, and separately a 2-minute cap, on a web portal for 14+ days before changing Playables (M4, M5, M1). M<br>→ **Needs a web portal.** Not possible here; the test plan is in `docs/AD_POLICY_LOG.md`.
+43. Optionally, an interstitial at world transitions (a natural loading break), counted inside the same caps (M3). S<br>→ **Already true.** Pressing Next at a world transition is an ordinary break inside the same caps; no extra placement was added.
 
 ### P4: polish and process
 
-44. Device performance pass on a mid-range Android phone and an iPhone: frame rate, memory under 512 MB, time to `gameReady` (P1). M
-45. Optional haptic taps on mobile (`navigator.vibrate`) if Playables allows them; haptics improved enjoyment in a controlled study (E11). S, after verifying
-46. Let players skip long slide or current animations by tapping (E11). S
-47. Accessible names for animal and hat buttons in all five languages; currently some use raw species ids (P5). S
-48. Publish only one build per game (the duplicate-build ban) and keep test builds private (P7). S
-49. Document the ad caps as hypotheses and record each change with dates, to read against YouTube's monthly data (M1). S
+44. Device performance pass on a mid-range Android phone and an iPhone: frame rate, memory under 512 MB, time to `gameReady` (P1). M<br>→ **Needs devices.** Not possible here.
+45. Optional haptic taps on mobile (`navigator.vibrate`) if Playables allows them; haptics improved enjoyment in a controlled study (E11). S, after verifying<br>→ **Done, pending a check in the Playables frame.** Short taps on a rescue, a win and a blocked move, with an off switch in the pause menu (a Playables requirement found in item 9).
+46. Let players skip long slide or current animations by tapping (E11). S<br>→ **Done.** Tapping during a move triples the animation speed for the rest of it.
+47. Accessible names for animal and hat buttons in all five languages; currently some use raw species ids (P5). S<br>→ **Done.** Animals, hats, worlds and elements have names in all five languages, read by screen readers only.
+48. Publish only one build per game (the duplicate-build ban) and keep test builds private (P7). S<br>→ **Process.** Recorded in `docs/LISTING.md`.
+49. Document the ad caps as hypotheses and record each change with dates, to read against YouTube's monthly data (M1). S<br>→ **Done.** `docs/AD_POLICY_LOG.md`.
 
 ## What not to do
 

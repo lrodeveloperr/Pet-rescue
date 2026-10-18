@@ -8,6 +8,10 @@ import { t } from './i18n.js';
 // level cannot land on them; Next has the same guard.
 const PRESS_GUARD_MS = 400;
 
+// The screen is textless; offer wording is read to screen readers only. If a store review ever
+// requires written ad disclosure, set this to true to also print the localized wording.
+const SHOW_OFFER_WORDS = false;
+
 function el(tag, attrs = {}, html = '') {
   const e = document.createElement(tag);
   for (const [k, v] of Object.entries(attrs)) {
@@ -590,7 +594,7 @@ export class Interface {
         `<span class="offer-ad">${UI.video}</span><span class="offer-arrow">${UI.arrow}</span><span class="offer-icon">${shown}</span>`,
       ),
     );
-    const desc = el('p', { class: 'sr-only', id: `offer-desc-${kind}` });
+    const desc = el('p', { class: SHOW_OFFER_WORDS ? 'offer-words' : 'sr-only', id: `offer-desc-${kind}` });
     desc.textContent = text;
     card.append(desc);
     const row = el('div', { class: 'row' });

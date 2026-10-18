@@ -15,11 +15,20 @@ A player who cannot read the displayed language must be able to start, move, rec
 - Gameplay comprehension must also work with sound muted. Audio may reinforce information.
 - Keep accessibility labels for assistive technology; textless play does not mean removing accessible names.
 
-## Necessary localized text
+## No words on screen
 
-Concise localized text remains permitted for voluntary advertising offers, the precise reward and scope, settings where a symbol is ambiguous, save/SDK/connectivity failures and recovery, and applicable privacy/legal notices.
+The whole game is textless on screen, not only the core loop. Every screen uses pictures, motion and digits:
 
-Never hide reward conditions behind an unexplained symbol. Optional rewarded offers must clearly identify the ad, reward, duration/scope and decline choice. A player who declines continues normal play.
+- **Rewarded offers** are a picture: the ad glyph (a play button in a screen, on a lavender button colour used only for ads) → an arrow → the reward icon. Accept (the ad glyph) and decline (a cross) have the same shape and colour. Declining returns straight to play.
+- **Notices** are pictures: the ad glyph crossed out (no ad available), the ad glyph → a crossed-out gift (the ad was closed early, so no reward), and a crossed-out cloud (progress could not be saved or loaded; play continues). The save notice appears at most once per session.
+- **The no-WebGL screen** is a crossed-out cube.
+- **Numbers** (moves and par, star totals, streak days, the countdown to the next daily, rescue counts) are digits. Digits are not tied to a language.
+
+Words exist only for assistive technology: accessible names for every control, animal, hat and puzzle element, and the full wording of each offer and notice in a screen-reader live region (en, es, pt, fr, de).
+
+### Disclosure risk
+
+Ad policies ask for clear disclosure of the ad, the reward and the decline choice. The pictograms show all three, and screen readers get the full sentence. If a YouTube review asks for written disclosure, set `SHOW_OFFER_WORDS` in `src/ui.js` to `true`; the localized sentences already exist.
 
 ## Acceptance checks to implement
 
@@ -31,7 +40,8 @@ Never hide reward conditions behind an unexplained symbol. Optional rewarded off
 | Colour information removed or confused | Shape/symbol/motion or other non-colour cues still distinguish relevant states. |
 | One active touch | Movement, selection, action, retry and next all work without simultaneous fingers. |
 | Ad declined or unavailable | Ordinary progression remains usable and no reward is granted unless verified. |
-| Failure and recovery | A clear localized explanation and usable recovery remain available where a symbol alone is insufficient. |
+| Failure and recovery | The picture notice is understood, and play recovers without reading. |
+| No words on screen | Automated: every major screen is scanned for visible text other than digits. |
 
 These are acceptance checks. The tester rows need real players and have not been run.
 
@@ -39,27 +49,27 @@ These are acceptance checks. The tester rows need real players and have not been
 
 Automated, in `npm run smoke` (headless Chromium, production build):
 
+- **No words on screen:** the level HUD, win panel, world-complete panel, pause menu, new-element card, map, calendar, garden, album, hats, rewarded offer, bonus-friend picker and no-reward notice are scanned; none shows visible text other than digits.
 - **First level:** a tutorial hand is shown on level 1. Real taps rescue the puppy and reach home. Efficient play earns three stars.
-- **Controls:** a swipe on the canvas takes one step, and undo reverts it.
-- **Levels:** levels 1–12 are completed in par moves through the game controller. The first, middle and last level of every world are completed. A bee level is solved without a sting.
-- **Menus and collection:** the map, garden, album and hat picker work. Tapping a garden pet makes it hop.
-- **Daily and saving:** the daily puzzle starts a streak, progress survives a reload, and the win panel invites to the daily once it unlocks.
-- **Interstitial caps:** no interstitial in the first levels, one after three levels and the minimum time, and none straight after a rewarded ad.
-- **Rewarded offers:** the skip offer explains the ad and reward in words. An accepted rewarded ad skips the level or unlocks a hat. An unfinished one grants nothing and play continues, and "No thanks" returns straight to play.
+- **Controls:** a swipe on the canvas takes one step, undo reverts it, a tap during a long move fast-forwards it, and Esc closes every dialog.
+- **Hints:** idle time pulses the hint button (no automatic hand outside tutorials); the button marks the key object, then the next moves, then the whole route.
+- **New elements:** the first level with a new element shows a wordless card and then rings the element on the board.
+- **Levels:** the first meadow levels are completed in par, and the first, middle and last level of every world are completed. A bee level is solved without a sting.
+- **Menus and collection:** the map, calendar, garden (including moving decorations and putting hats on pets), album (six world sets, three looks each) and hat picker (with how each hat is earned) work.
+- **Daily and saving:** the daily puzzle is the same for every player, starts a streak and can be shared as emoji text; progress survives a reload.
+- **Ads:** the interstitial caps hold; accept and decline look alike; a declined or unavailable ad grants nothing and shows a picture notice; repeated no-fill hides offers; six rewarded views a day is the cap.
 - **Feedback:** a blocked move shows a symbol bubble, and an unwinnable position highlights undo and restart.
 - **Errors:** no page errors occur.
 
 Implementation, not yet player-tested:
 
-- The core loop shows no text.
 - States use shape and motion cues as well as colour:
   - dashed outlines and locks for unavailable items;
   - a raised button with a pointer for the active companion;
   - pulsing rings for usable targets and crosses for blocked moves;
   - dotted bee routes;
   - gate posts sharing the plate's yellow ring;
-  - burrow pairs sharing a marker shape.
+  - burrow pairs sharing a marker shape;
+  - the ad glyph on every button that plays an ad.
 - All input works with one pointer, including waiting for bees by tapping the rescuer.
 - The game is fully playable muted.
-- Buttons have accessible names.
-- Ad offers and failure messages are localized in en, es, pt, fr and de.

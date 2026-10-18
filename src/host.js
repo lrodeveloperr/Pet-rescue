@@ -6,7 +6,8 @@ const SAVE_KEY = 'pet-rescue-progress-v1';
 const params = typeof location !== 'undefined' ? new URLSearchParams(location.search) : new URLSearchParams();
 // ?fakeads shows a stand-in ad outside YouTube for testing; ?fakeads=decline simulates a skipped
 // reward and ?fakeads=nofill an ad that cannot be shown.
-const fakeAds = params.has('fakeads') ? params.get('fakeads') || 'accept' : null;
+// Both are ignored inside YouTube.
+const fakeAds = !inPlayables && params.has('fakeads') ? params.get('fakeads') || 'accept' : null;
 
 function safe(fn, fallback) {
   try {

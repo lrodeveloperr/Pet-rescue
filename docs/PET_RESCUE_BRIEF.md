@@ -28,7 +28,7 @@ The selected companion must change what the player can do. Essential rescues mus
 
 Target one-finger play: movement and ability selection can happen sequentially. Do not require simultaneous touches, a held movement gesture plus a second finger, text input or spoken commands.
 
-Core gameplay must be understandable and completable without reading. Follow [TEXTLESS_GAMEPLAY.md](TEXTLESS_GAMEPLAY.md). Functional notices and voluntary ad offers may use concise localized text.
+Core gameplay must be understandable and completable without reading. Follow [TEXTLESS_GAMEPLAY.md](TEXTLESS_GAMEPLAY.md). On 18 October 2026 the user directed that the whole game be textless: offers and notices are pictograms too, and localized words are kept only for screen readers.
 
 ## Replay and progression
 
@@ -40,10 +40,15 @@ Implemented on 18 October 2026, at the user's request to maximise engagement and
 
 - **Worlds:** six worlds of 50 levels. Each world after the Meadow adds one mechanic that changes routes: river currents, ice, plates and gates, crumbling bridges, and mole burrows with patrolling bees.
 - **Level checks:** every level is solver-verified to depend on its mechanic and on its companions. Duplicate maps are removed even when rotated or mirrored.
-- **Daily puzzle and streak:** a daily puzzle drawn from a separate pool of 260.
-- **Stars and garden:** stars against par moves, a pet garden with star-unlocked decorations, and an album of all 32 animals.
-- **Hats:** cosmetic hats.
-- **Not counted as gameplay content:** palette changes and new animals are collection rewards, not puzzle variety.
+- **Daily puzzle and streak:** one puzzle per date for everyone, from a separate pool of more than a year; a countdown, a calendar, streak freezes and the best streak.
+- **Stars and garden:** stars against par moves (par shown on the star meter), a pet garden with star-unlocked decorations players can move, and an album of all 32 animals in six world sets.
+- **Hats:** 16 cosmetic hats, earned by stars or streaks; star hats can also be chosen with a rewarded ad.
+- **Not counted as gameplay content:** animal looks, hats and new animals are collection rewards, not puzzle variety.
+
+Revised the same day after the engagement audit:
+
+- **Level generator v2:** each level features specific companions and requires exactly those; obstacles the solution never touches are stripped; difficulty is scored structurally (dead positions, irreversible actions, required switches, a limited-search agent); each world is curated as a sawtooth of 10-level segments that add a new mechanic mix, with two forced lesson levels opening each world. The 33–39-move hand-made levels moved to the daily pool.
+- **Weekly sets and encore:** five puzzles a week, and an endless encore track after level 300.
 
 ## Advertising boundaries
 
@@ -58,12 +63,16 @@ On 18 October 2026 the user approved this policy to maximise ad revenue. It is i
   - none in the first three completed levels;
   - at most one per three levels *and* three minutes, whichever is later;
   - none within 90 seconds after a rewarded ad.
-- **Rewarded, voluntary, with localized text naming the ad, the reward and a decline button:**
-  - *skip level:* offered after three minutes on a level, from level 5; the skipped level can still be completed for stars;
-  - *mystery hat:* cosmetic;
-  - *one bonus daily puzzle:* after the day's puzzle.
+- **Interstitial exceptions:** none at the break after any rewarded view, and none after a level with three or more restarts or a stage-2 hint.
+- **Rewarded, voluntary, shown as a pictogram (the ad glyph → the reward) with ad and decline buttons that look alike:**
+  - *skip level:* offered after two minutes of play or three restarts on a level, from level 5; the skipped level can still be completed for stars;
+  - *whole-route hint:* hint stage 3 (stages 1–2 are free; free without ads), at most once a minute;
+  - *choose a star hat:* the player picks the hat first (replaced the random mystery hat);
+  - *bonus friend:* after a win, the player picks one of three animal looks first;
+  - *bonus daily puzzles:* at most two a day, after the day's puzzle.
+- **Caps:** at most six rewarded views a day; after two failed requests in a row, offers hide for the session.
 
-Hints, undo and restart stay free, so no ad is ever needed to progress. The caps are starting values to be tuned from YouTube analytics after onboarding.
+Undo, restart and hint stages 1–2 stay free, so no ad is ever needed to progress. The caps are starting values to be tuned from YouTube analytics after onboarding; changes are recorded in [AD_POLICY_LOG.md](AD_POLICY_LOG.md).
 
 ## Graphics engine and size budget
 
@@ -122,11 +131,12 @@ The main risk is selection friction: too many capabilities, unclear affordances 
 The build implements:
 
 - the core loop with four companions (puppy push, frog hop, duck swim, mole dig);
-- six worlds of 50 levels and 260 daily puzzles;
-- 32 rescuable animals;
-- stars, daily streaks, a pet garden, an album and hats;
+- six worlds of 50 levels, a daily pool of more than a year, weekly sets and an encore track;
+- 32 rescuable animals in three looks;
+- stars, daily streaks with freezes, a pet garden, an album and hats;
+- staged hints, new-element intro cards and a world-complete moment;
 - capped interstitial and rewarded ads;
-- the Playables lifecycle, saving and textless guidance.
+- the Playables lifecycle, saving and a fully textless screen.
 
 Automated tests prove that:
 

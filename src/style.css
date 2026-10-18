@@ -1711,3 +1711,11 @@ svg {
   top: -8px;
   bottom: auto;
 }
+
+.offer-words {
+  max-width: 320px;
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.4;
+  text-align: center;
+}
