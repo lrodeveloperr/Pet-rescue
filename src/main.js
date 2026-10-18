@@ -6,6 +6,8 @@ import { Game } from './game.js';
 import * as host from './host.js';
 import { setLanguage, t } from './i18n.js';
 import * as logic from './logic.js';
+import { SoundEngine } from './sound.js';
+import { Music } from './music.js';
 
 const KEY_DIRS = {
   ArrowUp: 'up', KeyW: 'up',
@@ -51,6 +53,7 @@ async function boot() {
     onCloseMap: () => game.closeMap(),
     onLevel: (i) => game.chooseLevel(i),
     onSound: () => game.toggleSound(),
+    onMusic: () => game.toggleMusic(),
   });
   game = new Game(world, ui, audio);
 
@@ -121,7 +124,7 @@ async function boot() {
   });
 
   host.gameReady();
-  if (new URLSearchParams(location.search).has('debug')) window.__petRescue = { game, world, ui, logic };
+  if (new URLSearchParams(location.search).has('debug')) window.__petRescue = { game, world, ui, logic, SoundEngine, Music };
 }
 
 boot();

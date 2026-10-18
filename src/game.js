@@ -29,7 +29,7 @@ export class Game {
     this.world = world;
     this.ui = ui;
     this.audio = audio;
-    this.progress = { v: 1, owned: [], done: [], sound: true };
+    this.progress = { v: 1, owned: [], done: [], sound: true, music: true };
     this.queue = [];
     this.history = [];
     this.busy = false;
@@ -53,6 +53,7 @@ export class Game {
           owned: COMPANIONS.filter((c) => Array.isArray(p.owned) && p.owned.includes(c)),
           done: Array.isArray(p.done) ? p.done.filter((id) => ids.has(id)) : [],
           sound: p.sound !== false,
+          music: p.music !== false,
         };
       }
     } catch (err) {
@@ -60,6 +61,7 @@ export class Game {
       this.ui.toast(t('loadFailed'));
     }
     this.audio.setUserEnabled(this.progress.sound);
+    this.audio.setMusicEnabled(this.progress.music);
   }
 
   async saveProgress() {
@@ -108,6 +110,7 @@ export class Game {
     this.world.loadLevel(this.level, this.state);
     this.world.setInsets(this.ui.insets());
     this.refresh();
+    this.audio.levelStart(i);
     this.scheduleHint(this.tutorial ? 900 : HINT_DELAY);
   }
 
@@ -211,12 +214,14 @@ export class Game {
     }
     if (kind === s.active) {
       this.ui.pulse(kind);
+      this.audio.voice(kind, { vol: 0.6 });
       return;
     }
     this.pushHistory(s);
     this.state = r.state;
     this.world.switchCompanion(this.state);
     this.audio.play('select');
+    this.audio.voice(kind, { delay: 0.06 });
     this.refresh();
     this.scheduleHint(this.idleDelay());
   }
@@ -231,6 +236,7 @@ export class Game {
     }
     this.queue = [];
     this.pendingTap = null;
+    this.audio.play('undo');
     this.state = this.history.pop();
     this.world.sync(this.state);
     this.ui.setStuck(false);
@@ -240,10 +246,12 @@ export class Game {
 
   restart() {
     this.audio.unlock();
+    this.audio.play('undo');
     this.startLevel(this.index);
   }
 
   next() {
+    this.audio.play('ui');
     if (this.index < LEVELS.length - 1) this.startLevel(this.index + 1);
   }
 
@@ -310,16 +318,21 @@ export class Game {
 
   playSound(r) {
     const a = this.audio;
+    const surface = r.state.t[r.to];
     switch (r.kind) {
+      case 'walk':
+      case 'win':
+        a.play('step', { surface });
+        break;
       case 'push':
         a.play('push');
+        a.play('step', { surface });
         if (r.result !== 'roll') setTimeout(() => a.play(r.result), 180);
         break;
       case 'open':
         a.play('open');
-        break;
-      case 'win':
-        a.play('walk');
+        a.voice(r.state.pet, { delay: 0.3 });
+        if (r.gained) a.stinger(ABILITY[r.gained], 0.9);
         break;
       default:
         a.play(r.kind);
@@ -327,6 +340,7 @@ export class Game {
   }
 
   afterOpen(r) {
+    this.audio.escaping();
     if (r.gained) this.ui.flashCompanionGain(r.gained, this.world.tileScreen(r.at, 0.8));
     this.ui.bubble(this.world.tileScreen(r.at, 1.4), UI.heart, 'heart');
   }
@@ -341,7 +355,10 @@ export class Game {
       if (s.owned.includes(c)) {
         const swimming = s.t[s.p] === '~';
         this.ui.bubble(pos, swimming ? UI.cross : face(c), swimming ? 'cross' : 'need');
-        if (!swimming) this.ui.pulse(c);
+        if (!swimming) {
+          this.ui.pulse(c);
+          this.audio.voice(c, { delay: 0.15, vol: 0.55 });
+        }
       } else {
         this.ui.bubble(pos, UI.lock, 'lock');
       }
@@ -371,6 +388,7 @@ export class Game {
           this.audio.play('blocked');
           this.ui.bubble(this.world.tileScreen(i, 0.9), face(c), 'need');
           this.ui.pulse(c);
+          this.audio.voice(c, { delay: 0.15, vol: 0.55 });
           this.scheduleHint(this.idleDelay());
           return;
         }
@@ -394,6 +412,7 @@ export class Game {
       this.ui.setStuck(stuck);
       if (stuck) {
         this.audio.play('stuck');
+        this.audio.calm();
         this.ui.bubble(this.world.tileScreen(state.p, 1.3), UI.cross, 'cross');
         this.clearHint();
         this.hintTimer = setTimeout(() => this.ui.showHand(this.ui.buttonCenter('btnUndo')), 1200);
@@ -404,6 +423,9 @@ export class Game {
   async onWin() {
     this.clearHint();
     this.audio.play('win');
+    // Everyone cheers: the rescued pet first, then the companion.
+    const voices = [this.state.pet, this.state.active].filter((k, n, a) => k && a.indexOf(k) === n);
+    voices.forEach((k, n) => this.audio.voice(k, { delay: 1.3 + n * 0.45 }));
     const id = LEVELS[this.index].id;
     const before = this.progress.owned;
     const gained = this.state.owned.find((c) => !before.includes(c)) ?? null;
@@ -425,10 +447,14 @@ export class Game {
     if (this.ui.overlayOpen) return;
     this.menuPaused = true;
     this.clearHint();
-    this.ui.showPause({ sound: this.progress.sound });
+    this.audio.play('ui');
+    this.audio.menu(true);
+    this.ui.showPause({ sound: this.progress.sound, music: this.progress.music });
   }
 
   resume() {
+    this.audio.play('ui');
+    this.audio.menu(false);
     this.menuPaused = false;
     this.ui.hideOverlays();
     this.scheduleHint(this.idleDelay());
@@ -440,12 +466,23 @@ export class Game {
     this.audio.setUserEnabled(this.progress.sound);
     this.audio.play('select');
     this.saveProgress();
-    this.ui.showPause({ sound: this.progress.sound });
+    this.ui.showPause({ sound: this.progress.sound, music: this.progress.music });
+  }
+
+  toggleMusic() {
+    this.audio.unlock();
+    this.progress.music = !this.progress.music;
+    this.audio.setMusicEnabled(this.progress.music);
+    this.audio.play('select');
+    this.saveProgress();
+    this.ui.showPause({ sound: this.progress.sound, music: this.progress.music });
   }
 
   openMap() {
     this.menuPaused = true;
     this.clearHint();
+    this.audio.play('ui');
+    this.audio.menu(true);
     this.ui.hideOverlays();
     this.ui.showMap(
       LEVELS.map((def, i) => ({
@@ -459,6 +496,7 @@ export class Game {
 
   closeMap() {
     if (this.state?.won) {
+      this.audio.music?.setMuffled(false);
       this.ui.hideOverlays();
       this.onWinOverlayAgain();
       return;
@@ -511,6 +549,7 @@ export class Game {
     const first = r.actions[0];
     if (first.startsWith('use:')) {
       this.ui.showHand(this.ui.buttonCenter(first.slice(4)));
+      this.audio.voice(first.slice(4), { vol: 0.4 });
       return;
     }
     // Point at the next action (push, dig, rescue, home...) or, if the plan switches
@@ -526,5 +565,6 @@ export class Game {
     }
     if (target < 0 || !findPath(s, target)) target = step(s, first).to;
     this.ui.showHand(this.world.tileScreen(target, 0.2));
+    if (s.active) this.audio.voice(s.active, { vol: 0.35 });
   }
 }

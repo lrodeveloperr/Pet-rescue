@@ -99,6 +99,8 @@ export const UI = {
   map: svg(`<g fill="currentColor"><rect x="10" y="10" width="18" height="18" rx="4"/><rect x="36" y="10" width="18" height="18" rx="4"/><rect x="10" y="36" width="18" height="18" rx="4"/><rect x="36" y="36" width="18" height="18" rx="4"/></g>`),
   soundOn: svg(`<path d="M12 24 H22 L34 14 V50 L22 40 H12Z" fill="currentColor"/><path d="M41 24 q5 8 0 16 M47 18 q10 14 0 28" ${P} stroke-width="4"/>`),
   soundOff: svg(`<path d="M12 24 H22 L34 14 V50 L22 40 H12Z" fill="currentColor"/><path d="M42 24 L54 40 M54 24 L42 40" ${P} stroke-width="4"/>`),
+  musicOn: svg(`<path d="M26 44 V14 L50 9 V38" ${P} stroke-width="4.5"/><ellipse cx="20" cy="45" rx="7.5" ry="6" fill="currentColor"/><ellipse cx="44" cy="39" rx="7.5" ry="6" fill="currentColor"/>`),
+  musicOff: svg(`<path d="M26 44 V14 L50 9 V38" ${P} stroke-width="4.5" opacity="0.45"/><ellipse cx="20" cy="45" rx="7.5" ry="6" fill="currentColor" opacity="0.45"/><ellipse cx="44" cy="39" rx="7.5" ry="6" fill="currentColor" opacity="0.45"/><path d="M10 10 L54 54" ${P} stroke-width="5"/>`),
   lock: svg(`<rect x="16" y="28" width="32" height="24" rx="5" fill="currentColor"/><path d="M22 28 V21 a10 10 0 0 1 20 0 V28" ${P}/>`),
   check: svg(`<path d="M14 33 L27 46 L50 19" ${P} stroke-width="7"/>`),
   heart: svg(`<path d="M32 54 C4 36 6 10 22 10 C28 10 32 16 32 20 C32 16 36 10 42 10 C58 10 60 36 32 54Z" fill="#ff5a7a" stroke="${O}" stroke-width="2.5"/>`),

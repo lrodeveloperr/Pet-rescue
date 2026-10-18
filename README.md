@@ -23,6 +23,7 @@ npm run dev        # local development server
 npm run build      # production build in dist/ plus a size report against the Playables limits
 npm test           # rules and level tests (Node)
 npm run smoke      # plays the production build in headless Chromium and saves screenshots/
+npm run audio-preview  # renders every sound offline, checks level/clipping, writes screenshots/audio-preview.wav
 ```
 
 `dist/` is the folder to zip and upload. `npm run smoke` needs a Chromium; it uses `/opt/pw-browsers/chromium` by default or the path in `CHROMIUM_PATH`.
@@ -45,9 +46,19 @@ npm run smoke      # plays the production build in headless Chromium and saves s
 - If a move makes the level unwinnable (possible only on levels 8 and 11), undo and restart light up and the hand points at undo.
 - Text appears only for save/load failures and missing WebGL (en, es, pt, fr, de), and as accessible names on buttons.
 
+## Sound
+
+Every sound is synthesized at runtime with the Web Audio API (`src/sound.js`, `src/music.js`), so no audio files ship.
+
+- **Music:** a looping marimba tune over bass, a soft pad and light percussion. Each level gets its own key and a seeded melody with a repeating motif. The music follows play: it is fuller while exploring and adds a beat and echoing notes on the escape home after a rescue. It calms down after 10 seconds idle and goes muffled behind menus.
+- **Animal voices:** all 12 animals have one (bark, ribbit, quack, mole snuffle, meow, bunny thump, oink, cheep, hamster squeak, baa, fox yip, panda honk). They play on rescue, when switching companion, in the home celebration, and softly when a hint or a blocked move points at a companion.
+- **Effects with variation:** footsteps differ on grass, dug earth, stone crossings and the home doorstep, with random pitch and volume so repeats don't drone. Boulders rumble as they roll, then splash and bubble in a pond or thud into a gap. The frog hop is springy, digging rustles, and the cage clanks and sparkles.
+- **Ability stingers:** gaining a companion plays a short motif for its ability (brass thumps, a bouncing scale, a water glissando, wood taps), resolving to a chord. The music ducks underneath.
+- **Settings:** the pause menu has separate sound and music toggles, both saved. Everything mutes when YouTube reports audio off or pauses the game.
+
 ## Size and performance
 
-- The production build is about 157 KB gzipped, against the 15 MiB initial-bundle target. All models are generated in code from primitives, and all sound is synthesized, so the game ships no asset files.
+- The production build is about 162 KB gzipped, against the 15 MiB initial-bundle target. All models are generated in code from primitives, and all sound and music are synthesized, so the game ships no asset files.
 - Each character is merged into one vertex-coloured mesh. Ground and trees are instanced.
 - The renderer caps pixel ratio at 2 and lowers it automatically if frames run slower than 45 fps.
 

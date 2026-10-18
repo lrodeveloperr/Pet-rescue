@@ -75,7 +75,7 @@ Asset and startup rules:
 - The game must adapt to portrait, landscape and arbitrary aspect ratios.
 - The store cover/thumbnail is a separately uploaded image and may be an offline high-quality render of the same models.
 
-First build, measured 18 October 2026: about 157 KB gzipped in total, because models are generated from primitives and sounds are synthesized. Frame rate on real phones and certification have not been measured.
+First build, measured 18 October 2026: about 162 KB gzipped in total, because models are generated from primitives and sound and music are synthesized. Frame rate on real phones and certification have not been measured.
 
 Sources:
 - https://developers.google.com/youtube/gaming/playables/certification/requirements_stability

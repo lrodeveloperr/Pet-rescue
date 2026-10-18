@@ -203,7 +203,7 @@ export class Interface {
     return [this.pauseOverlay, this.winOverlay, this.mapOverlay].some((o) => !o.classList.contains('hidden'));
   }
 
-  showPause({ sound }) {
+  showPause({ sound, music }) {
     const o = this.pauseOverlay;
     o.setAttribute('aria-label', t('pause'));
     o.innerHTML = '';
@@ -214,13 +214,16 @@ export class Interface {
     const map = button('round', UI.map, t('map'));
     const snd = button('round', sound ? UI.soundOn : UI.soundOff, sound ? t('soundOn') : t('soundOff'));
     snd.setAttribute('aria-pressed', String(sound));
-    row.append(restart, map, snd);
+    const mus = button('round', music ? UI.musicOn : UI.musicOff, music ? t('musicOn') : t('musicOff'));
+    mus.setAttribute('aria-pressed', String(music));
+    row.append(restart, map, snd, mus);
     card.append(resume, row);
     o.append(card);
     onPress(resume, () => this.h.onResume());
     onPress(restart, () => this.h.onRestart());
     onPress(map, () => this.h.onMap());
     onPress(snd, () => this.h.onSound());
+    onPress(mus, () => this.h.onMusic());
     o.classList.remove('hidden');
     focusForKeyboard(resume);
   }

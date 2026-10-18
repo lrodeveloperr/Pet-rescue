@@ -8,7 +8,8 @@
     "build": "vite build && node scripts/size-report.mjs",
     "preview": "vite preview",
     "test": "node --test test/*.test.js",
-    "smoke": "node scripts/smoke.mjs"
+    "smoke": "node scripts/smoke.mjs",
+    "audio-preview": "node scripts/audio-preview.mjs"
   },
   "dependencies": {
     "three": "^0.186.1"
