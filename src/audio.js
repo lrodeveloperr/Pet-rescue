@@ -9,8 +9,8 @@ const IDLE_CALM_MS = 10000;
 export class Audio {
   constructor() {
     this.ctx = null;
+    // YouTube owns muting (no in-game master mute); the game only offers a music toggle.
     this.hostEnabled = true;
-    this.userEnabled = true;
     this.musicEnabled = true;
     this.paused = false;
     this.base = 1;
@@ -19,7 +19,7 @@ export class Audio {
   }
 
   get enabled() {
-    return this.hostEnabled && this.userEnabled && !this.paused;
+    return this.hostEnabled && !this.paused;
   }
 
   // Browsers only allow audio after a user gesture; every input calls this.
@@ -48,11 +48,6 @@ export class Audio {
 
   setHostEnabled(v) {
     this.hostEnabled = v;
-    this.apply();
-  }
-
-  setUserEnabled(v) {
-    this.userEnabled = v;
     this.apply();
   }
 

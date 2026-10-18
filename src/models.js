@@ -324,10 +324,61 @@ export function animalGeometry(kind) {
   return geometryCache.get(kind);
 }
 
-export function buildAnimal(kind) {
-  const mesh = new Mesh(animalGeometry(kind), flatMaterial);
+// Album looks: 0 is the usual colouring; 1 and 2 blend the coat towards gold or lavender.
+// Eyes, noses and outlines (dark colours) keep their colour.
+export const VARIANT_TINTS = [null, 0xffc83d, 0x9a7bff];
+const variantCache = new Map();
+
+export function animalVariantGeometry(kind, variant = 0) {
+  if (!variant) return animalGeometry(kind);
+  const key = `${kind}|${variant}`;
+  if (!variantCache.has(key)) {
+    const g = animalGeometry(kind).clone();
+    const col = g.attributes.color;
+    const tint = new Color(VARIANT_TINTS[variant]);
+    const c = new Color();
+    const hsl = {};
+    for (let i = 0; i < col.count; i++) {
+      c.setRGB(col.getX(i), col.getY(i), col.getZ(i));
+      c.getHSL(hsl);
+      if (hsl.l < 0.22) continue;
+      c.lerp(tint, 0.42);
+      col.setXYZ(i, c.r, c.g, c.b);
+    }
+    col.needsUpdate = true;
+    variantCache.set(key, g);
+  }
+  return variantCache.get(key);
+}
+
+export function buildAnimal(kind, variant = 0) {
+  const mesh = new Mesh(animalVariantGeometry(kind, variant), flatMaterial);
   mesh.userData.kind = kind;
+  mesh.userData.variant = variant;
   return mesh;
+}
+
+const headCache = new Map();
+
+/** Where a hat sits on an animal: the centre of the topmost vertices. */
+export function animalHatSpot(kind) {
+  if (!headCache.has(kind)) {
+    const pos = animalGeometry(kind).attributes.position;
+    let top = -Infinity;
+    for (let i = 0; i < pos.count; i++) top = Math.max(top, pos.getY(i));
+    let x = 0;
+    let z = 0;
+    let n = 0;
+    for (let i = 0; i < pos.count; i++) {
+      if (pos.getY(i) > top - 0.12) {
+        x += pos.getX(i);
+        z += pos.getZ(i);
+        n++;
+      }
+    }
+    headCache.set(kind, { x: x / n, y: top - 0.06, z: z / n });
+  }
+  return headCache.get(kind);
 }
 
 export function buildRescuer() {
@@ -469,8 +520,12 @@ export function buildBee() {
   return body;
 }
 
-// Hats: worn by the rescuer, unlocked by stars or the mystery-hat offer.
-export const HATS = ['party', 'crown', 'flowers', 'beanie', 'cowboy', 'tophat', 'chef', 'pirate', 'wizard', 'bow', 'viking', 'propeller'];
+// Hats: worn by the rescuer (and garden pets). Star hats can also be chosen with a rewarded ad;
+// streak hats are earned only by daily streaks.
+export const HATS = [
+  'party', 'crown', 'flowers', 'beanie', 'cowboy', 'tophat', 'chef', 'pirate', 'wizard',
+  'bow', 'viking', 'propeller', 'sunhat', 'antlers', 'astronaut', 'unicorn',
+];
 
 export function buildHat(kind) {
   const b = new Builder();
@@ -529,6 +584,31 @@ export function buildHat(kind) {
     case 'viking':
       b.add(SPHERE, 0xa8b0bc, { pos: [0, 0.02, 0], scale: [0.18, 0.13, 0.18] });
       b.pair(CONE, 0xf6efe6, { pos: [0.18, 0.1, 0], scale: [0.04, 0.16, 0.04], rot: [0, 0, -0.9] });
+      break;
+    case 'sunhat':
+      b.add(CYL, 0xf2d27a, { pos: [0, 0, 0], scale: [0.3, 0.02, 0.3] });
+      b.add(SPHERE, 0xf2d27a, { pos: [0, 0.05, 0], scale: [0.15, 0.1, 0.15] });
+      b.add(CYL, 0xff7aa8, { pos: [0, 0.03, 0], scale: [0.155, 0.03, 0.155] });
+      b.add(SMOOTH_SPHERE, 0xffffff, { pos: [0.12, 0.05, 0.08], scale: 0.035 });
+      break;
+    case 'antlers':
+      for (const side of [1, -1]) {
+        b.add(CYL, 0x9a6234, { pos: [0.09 * side, 0.1, 0], scale: [0.018, 0.2, 0.018], rot: [0, 0, -0.35 * side] });
+        b.add(CYL, 0x9a6234, { pos: [0.14 * side, 0.15, 0.02], scale: [0.015, 0.1, 0.015], rot: [0.4, 0, -1.1 * side] });
+        b.add(CYL, 0x9a6234, { pos: [0.1 * side, 0.17, -0.02], scale: [0.015, 0.08, 0.015], rot: [-0.5, 0, -0.2 * side] });
+      }
+      b.add(SMOOTH_SPHERE, 0xe5383b, { pos: [0, 0.02, 0.1], scale: 0.03 });
+      break;
+    case 'astronaut':
+      b.add(SMOOTH_SPHERE, 0xf4f6fa, { pos: [0, 0.03, 0], scale: [0.21, 0.17, 0.21] });
+      b.add(SMOOTH_SPHERE, 0x4a8fd6, { pos: [0, 0.03, 0.12], scale: [0.13, 0.09, 0.08] });
+      b.add(CYL, 0xe5383b, { pos: [0, 0.2, 0], scale: [0.012, 0.08, 0.012] });
+      b.add(SMOOTH_SPHERE, 0xffd84a, { pos: [0, 0.25, 0], scale: 0.025 });
+      break;
+    case 'unicorn':
+      b.add(CONE, 0xffe066, { pos: [0, 0.12, 0.06], scale: [0.04, 0.24, 0.04], rot: [0.35, 0, 0] });
+      for (const [y, c] of [[0.04, 0xff8fab], [0.1, 0xb9a6ff], [0.16, 0x7fd6ff]]) b.add(CYL, c, { pos: [0, y, 0.06 + (y - 0.04) * 0.35], scale: [0.045 - y * 0.12, 0.012, 0.045 - y * 0.12] });
+      b.pair(CONE, 0xff8fab, { pos: [0.09, 0.03, -0.03], scale: [0.03, 0.07, 0.03], rot: [0, 0, -0.3] });
       break;
     case 'propeller':
       b.add(SPHERE, 0xffc83d, { pos: [0, 0.02, 0], scale: [0.17, 0.11, 0.17] });

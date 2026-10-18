@@ -9,6 +9,7 @@ import * as logic from './logic.js';
 import { SoundEngine } from './sound.js';
 import { Music } from './music.js';
 import { LEVELS } from './levels.js';
+import { UI } from './icons.js';
 
 const KEY_DIRS = {
   ArrowUp: 'up', KeyW: 'up',
@@ -18,9 +19,11 @@ const KEY_DIRS = {
 };
 const COMPANION_KEYS = { Digit1: 'puppy', Digit2: 'frog', Digit3: 'duck', Digit4: 'mole' };
 
+// Even the no-WebGL screen is a picture; its words are for screen readers only.
 function fatal(message) {
   const box = document.getElementById('fatal');
-  box.textContent = message;
+  box.innerHTML = `<span class="fatal-icon" aria-hidden="true">${UI.noWebgl}<i>${UI.cross}</i></span><span class="sr-only"></span>`;
+  box.querySelector('.sr-only').textContent = message;
   box.hidden = false;
 }
 
@@ -60,10 +63,16 @@ async function boot() {
     onAlbum: () => game.openAlbum(),
     onHats: () => game.openHats(),
     onWearHat: (h) => game.wearHat(h),
-    onMystery: () => game.offerMysteryHat(),
     onSkip: () => game.offerSkip(),
-    onSound: () => game.toggleSound(),
+    onHint: () => game.requestHint(),
+    onShare: () => game.shareDaily(),
+    onFriend: () => game.offerFriend(),
+    onCalendar: () => game.openCalendar(),
+    onWeekly: () => game.playWeekly(),
+    onEncore: () => game.playEncore(),
+    onGardenEdit: () => game.toggleGardenEdit(),
     onMusic: () => game.toggleMusic(),
+    onHaptics: () => game.toggleHaptics(),
   });
   game = new Game(world, ui, audio);
 
@@ -111,14 +120,14 @@ async function boot() {
     } else if (e.code === 'Space') {
       e.preventDefault();
       if (game.state?.bees.length) game.swipe('wait');
+    } else if (e.code === 'KeyH') {
+      game.requestHint();
     } else if (e.code === 'KeyZ' || e.code === 'Backspace') {
       game.undo();
     } else if (e.code === 'KeyR') {
       game.restart();
     } else if (e.code === 'Escape' || e.code === 'KeyP') {
-      if (game.mode === 'garden') game.leaveGarden();
-      else if (game.menuPaused) game.resume();
-      else game.openPause();
+      game.escape();
     }
   });
 
@@ -126,6 +135,7 @@ async function boot() {
     world.resize();
     world.setInsets(ui.insets());
     ui.hideHand();
+    game.onResize();
   };
   window.addEventListener('resize', onResize);
   window.visualViewport?.addEventListener('resize', onResize);
@@ -134,6 +144,8 @@ async function boot() {
   world.renderer.setAnimationLoop((now) => {
     const dt = Math.min(0.05, (now - last) / 1000);
     last = now;
+    // Catch size changes that arrive without a resize event (such as a 0×0 first viewport).
+    if (window.innerWidth !== world.sizeW || window.innerHeight !== world.sizeH) onResize();
     if (!game.hostPaused) world.update(dt);
   });
 

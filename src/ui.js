@@ -1,7 +1,12 @@
 // HTML overlay: icon-only controls on top of the 3D canvas.
-import { face, silhouette, ability, UI, WORLD_ICONS, HAT_ICONS } from './icons.js';
+import { face, silhouette, ability, UI, WORLD_ICONS, HAT_ICONS, MECH_ICONS } from './icons.js';
 import { COMPANIONS, ABILITY } from './logic.js';
+import { VARIANT_TINTS } from './models.js';
 import { t } from './i18n.js';
+
+// Rewarded buttons ignore presses this soon after a panel opens, so a tap meant for the
+// level cannot land on them; Next has the same guard.
+const PRESS_GUARD_MS = 400;
 
 function el(tag, attrs = {}, html = '') {
   const e = document.createElement(tag);
@@ -17,7 +22,20 @@ function button(cls, icon, label) {
   return el('button', { class: `btn ${cls}`, type: 'button', 'aria-label': label }, icon);
 }
 
+/** A button that plays a rewarded ad: its own colour and the video glyph, unlike Next. */
+function adButton(cls, icon, label) {
+  return button(`ad ${cls}`, `${icon}<i class="ad-badge">${UI.video}</i>`, label);
+}
+
 const starsHtml = (n, max = 3) => Array.from({ length: max }, (_, k) => `<i class="s ${k < n ? 'on' : 'off'}">${k < n ? UI.star : UI.starEmpty}</i>`).join('');
+const tintHex = (v) => `#${VARIANT_TINTS[v].toString(16).padStart(6, '0')}`;
+const lookFace = (kind, v) => (v ? `<span class="tinted" style="--tint:${tintHex(v)}">${face(kind)}</span>` : face(kind));
+const animalName = (kind) => t(`a_${kind}`);
+
+function clock(ms) {
+  const m = Math.max(0, Math.ceil(ms / 60000));
+  return `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}`;
+}
 
 // Move focus into dialogs only for keyboard players, so touch players see no focus ring.
 let keyboardUser = false;
@@ -29,8 +47,10 @@ function focusForKeyboard(node) {
 
 // Pointer handling that ignores the synthetic click after a touch, and works with one finger.
 // Scrolling a list (finger moves) does not count as a press.
-function onPress(node, fn) {
+function onPress(node, fn, { guard = 0 } = {}) {
   let down = null;
+  const shown = performance.now();
+  const ready = () => performance.now() - shown >= guard;
   node.addEventListener('pointerdown', (e) => {
     e.stopPropagation();
     down = { x: e.clientX, y: e.clientY };
@@ -40,12 +60,13 @@ function onPress(node, fn) {
     e.preventDefault();
     e.stopPropagation();
     if (down && Math.hypot(e.clientX - down.x, e.clientY - down.y) > 12) return;
+    if (!ready()) return;
     fn(e);
   });
   node.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
-      fn(e);
+      if (ready()) fn(e);
     }
   });
 }
@@ -67,7 +88,8 @@ export class Interface {
     this.btnRestart = button('round', UI.restart, t('restart'));
     right.append(this.btnUndo, this.btnRestart);
     this.top.append(this.btnPause, middle, right);
-    this.btnSkip = button('round skip hidden', `${UI.skip}<i class="ad-badge">${t('adLabel')}</i>`, t('skip'));
+    this.btnHint = button('round hint-btn', UI.hint, t('hint'));
+    this.btnSkip = adButton('round skip hidden', UI.skip, t('skip'));
 
     this.bar = el('div', { class: 'bar', role: 'toolbar' });
     this.companionButtons = new Map();
@@ -83,16 +105,18 @@ export class Interface {
 
     this.layer = el('div', { class: 'layer', 'aria-hidden': 'true' });
     this.hand = el('div', { class: 'hand hidden', 'aria-hidden': 'true' }, UI.hand);
-    this.toastEl = el('div', { class: 'toast hidden', role: 'status', 'aria-live': 'polite' });
+    // Screen-reader announcements only; nothing here is drawn on screen.
+    this.toastEl = el('div', { class: 'sr-only', role: 'status', 'aria-live': 'polite' });
 
     this.overlays = {};
-    for (const name of ['pause', 'win', 'map', 'offer', 'album', 'hats']) this.overlays[name] = this.overlay(name);
+    for (const name of ['pause', 'win', 'map', 'offer', 'album', 'hats', 'intro', 'calendar', 'friends']) this.overlays[name] = this.overlay(name);
 
-    root.append(this.top, this.btnSkip, this.bar, this.gardenBar, this.layer, this.hand, ...Object.values(this.overlays), this.toastEl);
+    root.append(this.top, this.btnHint, this.btnSkip, this.bar, this.gardenBar, this.layer, this.hand, ...Object.values(this.overlays), this.toastEl);
 
     onPress(this.btnPause, () => this.h.onPause());
     onPress(this.btnUndo, () => this.h.onUndo());
     onPress(this.btnRestart, () => this.h.onRestart());
+    onPress(this.btnHint, () => this.h.onHint());
     onPress(this.btnSkip, () => this.h.onSkip());
   }
 
@@ -104,6 +128,7 @@ export class Interface {
     const level = mode === 'level';
     this.top.classList.toggle('hidden', !level);
     this.bar.classList.toggle('hidden', !level);
+    this.btnHint.classList.toggle('hidden', !level);
     this.gardenBar.classList.toggle('hidden', level);
     if (!level) this.btnSkip.classList.add('hidden');
   }
@@ -135,14 +160,14 @@ export class Interface {
       `<span class="goal-home ${rescued ? 'next' : ''}">${UI.home}</span>`;
   }
 
-  /** Three stars that drop away as the move count passes par. */
-  setStars(stars, moves) {
-    const key = `${stars}|${moves}`;
+  /** Three stars that drop away as the move count passes par; the target is shown as moves/par. */
+  setStars(stars, moves, par) {
+    const key = `${stars}|${moves}|${par}`;
     if (this.starKey === key) return;
-    const lost = this.starCount !== undefined && stars < this.starCount;
+    const lost = this.starCount !== undefined && stars < this.starCount && moves > 0;
     this.starKey = key;
     this.starCount = stars;
-    this.starMeter.innerHTML = `${starsHtml(stars)}<b class="moves">${moves}</b>`;
+    this.starMeter.innerHTML = `${starsHtml(stars)}<b class="moves ${moves > par ? 'over' : ''}">${moves}<small>/${par}</small></b>`;
     if (lost) {
       this.starMeter.classList.remove('lost');
       void this.starMeter.offsetWidth;
@@ -153,6 +178,10 @@ export class Interface {
   setSkip(show) {
     this.btnSkip.classList.toggle('hidden', !show);
     if (show) this.pulse(this.btnSkip);
+  }
+
+  setHintAttention(on) {
+    this.btnHint.classList.toggle('attention', on);
   }
 
   setCompanions(owned, active, { swimming = false } = {}) {
@@ -229,6 +258,25 @@ export class Interface {
     setTimeout(() => b.remove(), 1300);
   }
 
+  /**
+   * Wordless notices. The picture says what happened; the words go only to the screen-reader
+   * live region. 'noAd': no ad could be shown. 'noReward': the ad was closed early, so no reward.
+   * 'save' / 'load': progress could not be saved or loaded (play continues).
+   */
+  notice(kind) {
+    const pictures = {
+      noAd: `<span class="p">${UI.video}<i class="cross">${UI.cross}</i></span>`,
+      noReward: `<span class="p">${UI.video}</span><span class="p small">${UI.arrow}</span><span class="p">${UI.gift}<i class="cross">${UI.cross}</i></span>`,
+      save: `<span class="p">${UI.cloud}<i class="cross">${UI.cross}</i></span>`,
+      load: `<span class="p">${UI.cloud}<i class="cross">${UI.cross}</i></span>`,
+    };
+    const words = { noAd: 'adUnavailable', noReward: 'adNoReward', save: 'saveFailed', load: 'loadFailed' };
+    const b = el('div', { class: `notice ${kind}`, 'aria-hidden': 'true' }, pictures[kind]);
+    this.layer.append(b);
+    setTimeout(() => b.remove(), 2600);
+    this.toastEl.textContent = t(words[kind]);
+  }
+
   showHand(pos, { press = true } = {}) {
     this.hand.style.left = `${pos.x}px`;
     this.hand.style.top = `${pos.y}px`;
@@ -241,16 +289,24 @@ export class Interface {
   }
 
   buttonCenter(target) {
-    const r = this.resolve(target).getBoundingClientRect();
+    const node = this.resolve(target);
+    if (!node) return { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+    const r = node.getBoundingClientRect();
     return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
   }
 
   hideOverlays() {
     for (const o of Object.values(this.overlays)) o.classList.add('hidden');
+    clearInterval(this.countdownTimer);
+    this.onEscape = null;
   }
 
   get overlayOpen() {
     return Object.values(this.overlays).some((o) => !o.classList.contains('hidden'));
+  }
+
+  get openOverlay() {
+    return Object.keys(this.overlays).find((k) => !this.overlays[k].classList.contains('hidden')) ?? null;
   }
 
   open(name, label, ...children) {
@@ -264,93 +320,208 @@ export class Interface {
 
   // ---------- dialogs ----------
 
-  showPause({ sound, music }) {
+  showPause({ music, haptics = null }) {
     const card = el('div', { class: 'card' });
     const resume = button('big primary', UI.play, t('resume'));
     const row = el('div', { class: 'row wrap' });
     const restart = button('round', UI.restart, t('restart'));
     const map = button('round', UI.map, t('map'));
     const garden = button('round', UI.garden, t('garden'));
-    const snd = button('round', sound ? UI.soundOn : UI.soundOff, sound ? t('soundOn') : t('soundOff'));
-    snd.setAttribute('aria-pressed', String(sound));
+    // Only music can be switched off here; YouTube's own controls mute the game.
     const mus = button('round', music ? UI.musicOn : UI.musicOff, music ? t('musicOn') : t('musicOff'));
     mus.setAttribute('aria-pressed', String(music));
-    row.append(restart, map, garden, snd, mus);
+    row.append(restart, map, garden, mus);
+    // Shown only where vibration works; the game uses short haptic taps on rescues and wins.
+    if (haptics !== null) {
+      const hap = button('round', haptics ? UI.vibrate : UI.vibrateOff, haptics ? t('hapticsOn') : t('hapticsOff'));
+      hap.setAttribute('aria-pressed', String(haptics));
+      row.append(hap);
+      onPress(hap, () => this.h.onHaptics());
+    }
     card.append(resume, row);
     this.hideOverlays();
     this.open('pause', t('pause'), card);
+    this.onEscape = () => this.h.onResume();
     onPress(resume, () => this.h.onResume());
     onPress(restart, () => this.h.onRestart());
     onPress(map, () => this.h.onMap());
     onPress(garden, () => this.h.onGarden());
-    onPress(snd, () => this.h.onSound());
     onPress(mus, () => this.h.onMusic());
     focusForKeyboard(resume);
   }
 
-  showWin({ pet, gained, stars = 0, hats = [], decoration = false, streak = null, hasNext, dailyReady = false }) {
-    const card = el('div', { class: 'card win-card' });
-    card.append(el('div', { class: 'win-stars' }, starsHtml(stars)));
-    card.append(el('div', { class: 'hero' }, `<span class="hearts">${UI.heart}${UI.heart}${UI.heart}</span><span class="hero-face">${face(pet)}</span><span class="hero-home">${UI.home}</span>`));
-    if (gained) {
-      card.append(el('div', { class: 'gain' }, `<span class="plus">+</span><span class="gain-face">${face(gained)}</span><span class="gain-ability ${ABILITY[gained]}">${ability(ABILITY[gained])}</span>`));
+  /** A wordless card for a new element: its icon(s) and a play button. */
+  showIntro({ mechanics, onPlay }) {
+    this.introArgs = { mechanics, onPlay };
+    const card = el('div', { class: 'card intro-card' });
+    card.append(el('div', { class: 'intro-badge', 'aria-hidden': 'true' }, UI.sparkle));
+    const icons = el('div', { class: 'intro-icons', 'aria-hidden': 'true' }, mechanics.map((m) => `<span class="mech">${MECH_ICONS[m]}</span>`).join('<b class="plus">+</b>'));
+    card.append(icons);
+    const play = button('big primary', UI.play, t('play'));
+    card.append(play);
+    this.hideOverlays();
+    this.open('intro', `${t('newElement')}: ${mechanics.map((m) => t(`m_${m}`)).join(', ')}`, card);
+    this.onEscape = () => onPlay();
+    onPress(play, () => onPlay(), { guard: 250 });
+    focusForKeyboard(play);
+  }
+
+  reopenIntro() {
+    if (this.introArgs) this.showIntro(this.introArgs);
+  }
+
+  showWin(w) {
+    const card = el('div', { class: `card win-card ${w.worldDone ? 'world-done' : ''}` });
+    if (w.worldDone) {
+      const d = w.worldDone;
+      card.append(
+        el(
+          'div',
+          { class: 'world-banner', role: 'img', 'aria-label': t('worldDone') },
+          `<span class="world-done-icon">${WORLD_ICONS[d.key]}<i class="badge ok">${UI.done}</i></span><span class="world-stars">${UI.star}<b>${d.stars}/${d.max}</b></span>` +
+            (d.next ? `<span class="arrow">${UI.arrow}</span><span class="world-next">${WORLD_ICONS[d.next]}<i class="sparkle">${UI.sparkle}</i></span>` : ''),
+        ),
+      );
+    } else {
+      card.append(el('div', { class: 'win-stars', role: 'img', 'aria-label': `${w.stars} ${t('stars')}` }, starsHtml(w.stars)));
+    }
+    card.append(
+      el(
+        'div',
+        { class: 'hero', 'aria-hidden': 'true' },
+        `<span class="hearts">${UI.heart}${UI.heart}${UI.heart}</span><span class="hero-face">${lookFace(w.pet, w.variant)}${w.newLook ? `<i class="sparkle">${UI.sparkle}</i>` : ''}</span><span class="hero-home">${UI.home}</span>`,
+      ),
+    );
+    if (w.gained) {
+      card.append(el('div', { class: 'gain', 'aria-hidden': 'true' }, `<span class="plus">+</span><span class="gain-face">${face(w.gained)}</span><span class="gain-ability ${ABILITY[w.gained]}">${ability(ABILITY[w.gained])}</span>`));
     }
     const rewards = [];
-    if (streak) rewards.push(`<span class="reward streak">${UI.flame}<b>${streak}</b></span>`);
-    for (const h of hats) rewards.push(`<span class="reward new">${HAT_ICONS[h]}</span>`);
-    if (decoration) rewards.push(`<span class="reward new">${UI.garden}</span>`);
-    if (rewards.length) card.append(el('div', { class: 'rewards' }, rewards.join('')));
-    const row = el('div', { class: 'row' });
+    if (w.streak) {
+      rewards.push(`<span class="reward streak">${UI.flame}<b>${w.streak.n}</b></span>`);
+      if (w.streak.froze) rewards.push(`<span class="reward used">${UI.freeze}<b>−${w.streak.froze}</b></span>`);
+      if (w.streak.earnedFreeze) rewards.push(`<span class="reward new">${UI.freeze}<b>+1</b></span>`);
+    }
+    for (const h of w.hats ?? []) rewards.push(`<span class="reward new">${HAT_ICONS[h]}</span>`);
+    if (w.decoration) rewards.push(`<span class="reward new">${UI.garden}</span>`);
+    for (const s of w.souvenirs ?? []) rewards.push(`<span class="reward new">${WORLD_ICONS[s]}<i class="badge ok">${UI.album}</i></span>`);
+    if (w.newLook) rewards.push(`<span class="reward new">${UI.album}<i class="sparkle">${UI.sparkle}</i></span>`);
+    if (rewards.length) card.append(el('div', { class: 'rewards', 'aria-hidden': 'true' }, rewards.join('')));
+
+    // The nearest goal, as a bar that fills from where it was before this win.
+    if (w.goal) {
+      const g = w.goal;
+      const bar = el(
+        'div',
+        { class: 'goal-progress', role: 'img', 'aria-label': `${g.value}/${g.target}` },
+        `<i class="meter"><b style="width:${Math.round(Math.min(1, g.from) * 100)}%"></b></i><span class="goal-icon">${g.icon}</span><small>${g.value}/${g.target}</small>`,
+      );
+      card.append(bar);
+      requestAnimationFrame(() => requestAnimationFrame(() => (bar.querySelector('.meter b').style.width = `${Math.round(Math.min(1, g.to) * 100)}%`)));
+    }
+
+    const row = el('div', { class: 'row wrap' });
     const replay = button('round', UI.restart, t('restart'));
     const map = button('round', UI.map, t('map'));
-    const garden = button('round', UI.garden, t('garden'));
+    const garden = button(`round ${w.worldDone ? 'primary pulse-forever' : ''}`, UI.garden, t('garden'));
     row.append(replay, map, garden);
-    if (dailyReady) {
+    if (w.dailyReady) {
       const daily = button('round daily-ready pulse-forever', UI.calendar, t('daily'));
       row.append(daily);
       onPress(daily, () => this.h.onDaily());
     }
+    if (w.canShare) {
+      this.btnShare = button('round', UI.share, t('share'));
+      row.append(this.btnShare);
+      onPress(this.btnShare, () => this.h.onShare());
+    }
+    if (w.canFriend) {
+      const friend = adButton('round', UI.gift, t('bonusFriend'));
+      row.append(friend);
+      onPress(friend, () => this.h.onFriend(), { guard: PRESS_GUARD_MS });
+    }
     let next = null;
-    if (hasNext) {
-      next = button('big primary pulse-forever', UI.play, t('next'));
-      card.append(next);
-      onPress(next, () => this.h.onNext());
+    if (w.hasNext) {
+      const label = w.worldDone?.next ? t('nextWorld') : t('next');
+      next = button('big primary pulse-forever', w.tease ? `${UI.play}` : UI.play, label);
+      const wrap = el('div', { class: 'next-wrap' });
+      wrap.append(next);
+      if (w.tease) wrap.append(el('div', { class: `tease ${w.tease.kind}`, 'aria-hidden': 'true' }, w.tease.html));
+      card.append(wrap);
+      onPress(next, () => this.h.onNext(), { guard: PRESS_GUARD_MS });
     }
     card.append(row);
     this.hideOverlays();
-    this.open('win', t('next'), card);
+    this.open('win', w.worldDone ? t('worldDone') : t('next'), card);
+    this.onEscape = () => this.h.onMap();
     onPress(replay, () => this.h.onRestart());
     onPress(map, () => this.h.onMap());
     onPress(garden, () => this.h.onGarden());
     if (next) setTimeout(() => focusForKeyboard(next), 50);
   }
 
-  showMap({ worlds, world, levels, daily, totalStars }) {
+  showMap({ worlds, world, levels, daily, weekly, encore, totalStars }) {
     const card = el('div', { class: 'card map-card' });
     const head = el('div', { class: 'map-head' });
     const close = button('round', UI.back, t('back'));
-    const total = el('div', { class: 'total-stars', 'aria-hidden': 'true' }, `${UI.star}<b>${totalStars}</b>`);
+    const total = el('div', { class: 'total-stars', role: 'img', 'aria-label': `${totalStars} ${t('stars')}` }, `${UI.star}<b>${totalStars}</b>`);
     const garden = button('round', UI.garden, t('garden'));
     head.append(close, total, garden);
     card.append(head);
 
-    // Daily puzzle card: calendar, today's pet, and the streak flame.
+    // Daily puzzle card: calendar, today's pet, the streak flame, best streak and freezes.
+    const extras = el('div', { class: 'extras' });
     const dailyBtn = el(
       'button',
-      { class: `daily ${daily.unlocked ? '' : 'locked'} ${daily.doneToday ? 'done' : ''}`, type: 'button', 'aria-label': t('daily') },
+      { class: `daily ${daily.unlocked ? '' : 'locked'} ${daily.doneToday ? 'done' : ''}`, type: 'button', 'aria-label': `${t('daily')}, ${t('streak')} ${daily.streak}` },
       `<span class="cal">${UI.calendar}</span><span class="face">${daily.unlocked ? face(daily.pet) : silhouette(daily.pet)}</span>` +
-        `<span class="streak">${UI.flame}<b>${daily.streak}</b></span>` +
-        (daily.unlocked ? (daily.doneToday ? (daily.canBonus ? `<i class="badge ad">${t('adLabel')}</i>` : `<i class="badge ok">${UI.check}</i>`) : '') : `<i class="badge">${UI.lock}</i>`),
+        `<span class="streak ${daily.streak ? '' : 'fresh'}">${UI.flame}<b>${daily.streak}</b></span>` +
+        (daily.unlocked ? (daily.doneToday ? (daily.canBonus ? `<i class="badge ad">${UI.video}</i>` : `<i class="badge ok">${UI.check}</i>`) : '') : `<i class="badge">${UI.lock}</i>`),
     );
     if (!daily.unlocked || (daily.doneToday && !daily.canBonus)) dailyBtn.disabled = true;
     else onPress(dailyBtn, () => this.h.onDaily());
-    card.append(dailyBtn);
+    const meta = el('div', { class: 'daily-meta' });
+    if (daily.best > daily.streak) meta.append(el('span', { class: 'chip', role: 'img', 'aria-label': `${t('best')} ${daily.best}` }, `${UI.trophy}<b>${daily.best}</b>`));
+    if (daily.freezes) meta.append(el('span', { class: 'chip', role: 'img', 'aria-label': `${t('freezes')} ${daily.freezes}` }, `${UI.freeze}<b>${daily.freezes}</b>`));
+    if (daily.doneToday) {
+      const left = el('span', { class: 'chip countdown', role: 'timer', 'aria-label': t('nextPuzzle') }, `${UI.clock}<b></b>`);
+      const tick = () => (left.querySelector('b').textContent = clock(daily.nextAt - Date.now()));
+      tick();
+      clearInterval(this.countdownTimer);
+      this.countdownTimer = setInterval(tick, 20000);
+      meta.append(left);
+    }
+    const cal = button('round small', UI.calendar, t('calendar'));
+    if (!daily.unlocked) cal.disabled = true;
+    else onPress(cal, () => this.h.onCalendar());
+    meta.append(cal);
+    const dailyWrap = el('div', { class: 'daily-wrap' });
+    dailyWrap.append(dailyBtn, meta);
+    extras.append(dailyWrap);
+
+    if (weekly) {
+      const allDone = weekly.done >= weekly.total;
+      const dots = Array.from({ length: weekly.total }, (_, k) => `<i class="${k < weekly.done ? 'on' : ''}"></i>`).join('');
+      const wk = el(
+        'button',
+        { class: `weekly ${weekly.unlocked ? '' : 'locked'} ${allDone ? 'done' : ''}`, type: 'button', 'aria-label': `${t('weekly')} ${weekly.done}/${weekly.total}` },
+        `<span class="cal">${UI.weekly}</span><span class="dots">${dots}</span>${weekly.unlocked ? (allDone ? `<i class="badge ok">${UI.check}</i>` : '') : `<i class="badge">${UI.lock}</i>`}`,
+      );
+      if (!weekly.unlocked || allDone) wk.disabled = true;
+      else onPress(wk, () => this.h.onWeekly());
+      extras.append(wk);
+    }
+    if (encore) {
+      const en = el('button', { class: 'encore', type: 'button', 'aria-label': `${t('encore')} ${encore.count}` }, `<span class="cal">${UI.encore}</span><span class="face">${face(encore.pet)}</span><b>${encore.count}</b>`);
+      onPress(en, () => this.h.onEncore());
+      extras.append(en);
+    }
+    card.append(extras);
 
     const tabs = el('div', { class: 'tabs', role: 'tablist' });
     worlds.forEach((w, i) => {
       const tab = el(
         'button',
-        { class: `tab ${i === world ? 'on' : ''} ${w.locked ? 'locked' : ''}`, type: 'button', role: 'tab', 'aria-selected': String(i === world), 'aria-label': `${t('world')} ${i + 1}` },
+        { class: `tab ${i === world ? 'on' : ''} ${w.locked ? 'locked' : ''}`, type: 'button', role: 'tab', 'aria-selected': String(i === world), 'aria-label': `${t('world')} ${i + 1}: ${t(`w_${w.key}`)}` },
         `${WORLD_ICONS[w.key]}${w.locked ? `<i class="badge">${UI.lock}</i>` : `<i class="meter"><b style="width:${Math.round((w.stars / w.max) * 100)}%"></b></i>`}`,
       );
       if (w.locked) tab.disabled = true;
@@ -361,7 +532,7 @@ export class Interface {
 
     const grid = el('div', { class: 'map-grid' });
     levels.forEach((lv, k) => {
-      const label = `${t('level')} ${k + 1}${lv.locked ? ` (${t('locked')})` : ''}`;
+      const label = `${t('level')} ${k + 1}${lv.locked ? ` (${t('locked')})` : `, ${lv.stars} ${t('stars')}`}`;
       const cls = ['node', lv.done ? 'done' : '', lv.locked ? 'locked' : '', lv.current ? 'current' : ''].join(' ');
       const inner = lv.locked
         ? `<span class="face">${silhouette(lv.pet)}</span><i class="badge">${UI.lock}</i>`
@@ -374,6 +545,7 @@ export class Interface {
     card.append(grid);
     this.hideOverlays();
     this.open('map', t('map'), card);
+    this.onEscape = () => this.h.onCloseMap();
     onPress(close, () => this.h.onCloseMap());
     onPress(garden, () => this.h.onGarden());
     // Bring the current or next level into view.
@@ -381,99 +553,176 @@ export class Interface {
     target?.scrollIntoView({ block: 'center' });
   }
 
-  /** A voluntary rewarded-ad offer: always says what it is, what it gives, and how to decline. */
-  showOffer({ kind, text, onAccept, onDecline }) {
+  /** The last four weeks of dailies: solved, frozen or missed, with streak, best and freezes. */
+  showCalendar({ cells, streak, best, freezes, nextAt, onClose }) {
+    const card = el('div', { class: 'card calendar-card' });
+    const close = button('round', UI.back, t('back'));
+    const stats = el(
+      'div',
+      { class: 'cal-stats', 'aria-hidden': 'true' },
+      `<span class="chip">${UI.flame}<b>${streak}</b></span><span class="chip">${UI.trophy}<b>${best}</b></span><span class="chip">${UI.freeze}<b>${freezes}</b></span><span class="chip">${UI.clock}<b>${clock(nextAt - Date.now())}</b></span>`,
+    );
+    const grid = el('div', { class: 'cal-grid', role: 'list' });
+    for (const c of cells) {
+      const icon = c.mark === 's' ? UI.star : c.mark === 'f' ? UI.freeze : '';
+      grid.append(el('div', { class: `day ${c.mark ? `m-${c.mark}` : ''} ${c.today ? 'today' : ''}`, role: 'listitem', 'aria-label': `${c.key}${c.mark === 's' ? ' ✓' : c.mark === 'f' ? ' ❄' : ''}` }, icon));
+    }
+    card.append(close, stats, grid);
+    this.hideOverlays();
+    this.open('calendar', t('calendar'), card);
+    this.onEscape = () => onClose();
+    onPress(close, () => onClose());
+  }
+
+  /**
+   * A voluntary rewarded-ad offer, shown as a picture: the ad (a play button in a screen) leads
+   * to the reward. Accept (the ad glyph) and decline (a cross) look alike. The full wording is
+   * read to screen readers only, so the screen stays textless.
+   */
+  showOffer({ kind, text, preview = null, variant = 0, onAccept, onDecline }) {
     const card = el('div', { class: 'card offer-card' });
-    const icon = { skip: UI.skip, hat: UI.hats, bonus: UI.calendar }[kind];
-    card.append(el('div', { class: 'offer-icon', 'aria-hidden': 'true' }, `${icon}<i class="ad-badge">${t('adLabel')}</i>`));
-    card.append(el('p', { class: 'offer-text' }, ''));
-    card.querySelector('.offer-text').textContent = text;
+    const icon = preview ?? { skip: UI.skip, hat: UI.hats, bonus: UI.calendar, hint: UI.hint, friend: UI.gift }[kind];
+    const shown = variant ? `<span class="tinted" style="--tint:${tintHex(variant)}">${icon}</span>` : icon;
+    card.append(
+      el(
+        'div',
+        { class: 'offer-pict', 'aria-hidden': 'true' },
+        `<span class="offer-ad">${UI.video}</span><span class="offer-arrow">${UI.arrow}</span><span class="offer-icon">${shown}</span>`,
+      ),
+    );
+    const desc = el('p', { class: 'sr-only', id: `offer-desc-${kind}` });
+    desc.textContent = text;
+    card.append(desc);
     const row = el('div', { class: 'row' });
-    const accept = el('button', { class: 'btn pill primary', type: 'button' }, `${UI.play}<span></span>`);
-    accept.querySelector('span').textContent = t('watchAd');
-    const decline = el('button', { class: 'btn pill', type: 'button' }, '<span></span>');
-    decline.querySelector('span').textContent = t('noThanks');
+    const accept = button('pill offer-btn', UI.video, t('watchAd'));
+    const decline = button('pill offer-btn', UI.close, t('noThanks'));
     row.append(decline, accept);
     card.append(row);
     this.hideOverlays();
-    this.open('offer', t('adLabel'), card);
-    onPress(accept, () => onAccept());
-    onPress(decline, () => {
+    const o = this.open('offer', t('adLabel'), card);
+    o.setAttribute('aria-describedby', desc.id);
+    const no = () => {
       this.hideOverlays();
       onDecline();
-    });
-    focusForKeyboard(accept);
+    };
+    this.onEscape = no;
+    onPress(accept, () => onAccept(), { guard: PRESS_GUARD_MS });
+    onPress(decline, no);
+    focusForKeyboard(decline);
+  }
+
+  /** Bonus friend: three looks to choose from, each named, before any ad plays. */
+  showFriends({ choices, onPick, onClose }) {
+    const card = el('div', { class: 'card friends-card' });
+    const close = button('round', UI.back, t('back'));
+    const row = el('div', { class: 'row' });
+    for (const c of choices) {
+      const b = el('button', { class: 'friend-choice', type: 'button', 'aria-label': `${animalName(c.kind)} (${t('look')} ${c.variant + 1})` }, `${lookFace(c.kind, c.variant)}<i class="ad-badge">${UI.video}</i>`);
+      onPress(b, () => onPick(c));
+      row.append(b);
+    }
+    card.append(close, row);
+    this.hideOverlays();
+    this.open('friends', t('bonusFriend'), card);
+    this.onEscape = () => onClose();
+    onPress(close, () => onClose());
   }
 
   // ---------- garden ----------
 
-  showGardenBar({ stars, next, canMystery }) {
+  showGardenBar({ stars, next, editing }) {
     this.gardenBar.innerHTML = '';
     const back = button('round', UI.back, t('back'));
     const album = button('round', UI.album, t('album'));
     const hats = button('round', UI.hats, t('hats'));
-    const progress = el('div', { class: 'deco-progress', 'aria-hidden': 'true' });
+    const move = button(`round ${editing ? 'primary' : ''}`, UI.move, t('move'));
+    move.setAttribute('aria-pressed', String(Boolean(editing)));
+    const progress = el('div', { class: 'deco-progress', role: 'img', 'aria-label': next ? `${stars}/${next.stars} ${t('stars')}` : `${stars} ${t('stars')}` });
     if (next) {
       const pct = Math.min(100, Math.round((stars / next.stars) * 100));
       progress.innerHTML = `${UI.star}<i class="meter"><b style="width:${pct}%"></b></i><span class="next-deco">${UI.garden}</span>`;
     } else {
       progress.innerHTML = `${UI.star}<b>${stars}</b>`;
     }
-    this.gardenBar.append(back, progress, album, hats);
-    if (canMystery) {
-      const mystery = button('round mystery', `${UI.hats}<i class="ad-badge">${t('adLabel')}</i>`, t('mystery'));
-      this.gardenBar.append(mystery);
-      onPress(mystery, () => this.h.onMystery());
-    }
+    this.gardenBar.append(back, progress, album, hats, move);
     onPress(back, () => this.h.onLeaveGarden());
     onPress(album, () => this.h.onAlbum());
     onPress(hats, () => this.h.onHats());
+    onPress(move, () => this.h.onGardenEdit());
   }
 
-  showAlbum(list) {
+  /** The album, grouped by world; a complete set shows its souvenir. */
+  showAlbum(sets) {
     const card = el('div', { class: 'card album-card' });
     const close = button('round', UI.back, t('back'));
-    const grid = el('div', { class: 'album-grid' });
-    for (const a of list) {
-      const has = a.count > 0 || a.owned;
-      grid.append(
-        el(
-          'div',
-          { class: `album-item ${has ? '' : 'missing'}`, 'aria-label': has ? `${a.kind} ×${a.count}` : t('locked') },
-          `<span class="face">${has ? face(a.kind) : silhouette(a.kind)}</span>${a.owned ? `<i class="badge">${ability(ABILITY[a.kind])}</i>` : ''}${a.count ? `<b class="count">×${a.count}</b>` : ''}`,
-        ),
-      );
+    const list = el('div', { class: 'album-sets' });
+    for (const set of sets) {
+      const head = el('div', { class: `set-head ${set.complete ? 'complete' : ''}`, role: 'img', 'aria-label': `${t(`w_${set.key}`)}${set.complete ? ' ✓' : ''}` }, `${WORLD_ICONS[set.key]}${set.complete ? `<i class="badge ok">${UI.check}</i>` : ''}`);
+      const grid = el('div', { class: 'album-grid' });
+      for (const a of set.animals) {
+        const has = a.count > 0 || a.owned;
+        const looks = a.looks.map((on, v) => `<i class="look v${v} ${on ? 'on' : ''}" ${v ? `style="--tint:${tintHex(v)}"` : ''}></i>`).join('');
+        const looksHad = a.looks.filter(Boolean).length;
+        grid.append(
+          el(
+            'div',
+            { class: `album-item ${has ? '' : 'missing'}`, role: 'img', 'aria-label': has ? `${animalName(a.kind)} ×${a.count}, ${t('look')} ${looksHad}/${a.looks.length}` : t('locked') },
+            `<span class="face">${has ? face(a.kind) : silhouette(a.kind)}</span>${a.owned ? `<i class="badge">${ability(ABILITY[a.kind])}</i>` : ''}${a.count ? `<b class="count">×${a.count}</b>` : ''}<span class="looks">${looks}</span>`,
+          ),
+        );
+      }
+      const section = el('section', { class: 'album-set' });
+      section.append(head, grid);
+      list.append(section);
     }
-    card.append(close, grid);
+    card.append(close, list);
     this.hideOverlays();
     this.open('album', t('album'), card);
+    this.onEscape = () => this.hideOverlays();
     onPress(close, () => this.hideOverlays());
   }
 
-  showHats({ hats, unlocked, worn, fresh = null }) {
+  /** Hats with how each locked one is earned; star hats can also be chosen with an ad. */
+  showHats({ hats, worn, fresh = null, canAd = false }) {
     const card = el('div', { class: 'card hats-card' });
     const close = button('round', UI.back, t('back'));
     const grid = el('div', { class: 'hat-grid' });
+    this.hatButtons = new Map();
     for (const h of hats) {
-      const has = unlocked.includes(h);
+      const need = h.need ? (h.need.stars !== undefined ? `${UI.star}<b>${h.need.stars}</b>` : `${UI.flame}<b>${h.need.streak}</b>`) : '';
+      const needLabel = h.need ? (h.need.stars !== undefined ? `${h.need.stars} ${t('starsNeeded')}` : `${h.need.streak} ${t('daysNeeded')}`) : '';
+      const adable = !h.unlocked && canAd && h.need?.stars !== undefined;
       const b = el(
         'button',
-        { class: `hat ${has ? '' : 'locked'} ${worn === h ? 'worn' : ''} ${fresh === h ? 'fresh' : ''}`, type: 'button', 'aria-label': h, 'aria-pressed': String(worn === h) },
-        `${HAT_ICONS[h]}${has ? '' : `<i class="badge">${UI.lock}</i>`}${worn === h ? `<i class="badge ok">${UI.check}</i>` : ''}`,
+        {
+          class: `hat ${h.unlocked ? '' : 'locked'} ${worn === h.key ? 'worn' : ''} ${fresh === h.key ? 'fresh' : ''}`,
+          type: 'button',
+          'aria-label': `${t(`h_${h.key}`)}${h.unlocked ? '' : ` (${t('locked')}: ${needLabel}${adable ? `, ${t('mystery')}` : ''})`}`,
+          'aria-pressed': String(worn === h.key),
+        },
+        `${HAT_ICONS[h.key]}${h.unlocked ? '' : `<span class="need">${need}</span>${adable ? `<i class="ad-badge">${UI.video}</i>` : `<i class="badge">${UI.lock}</i>`}`}${worn === h.key ? `<i class="badge ok">${UI.check}</i>` : ''}`,
       );
-      onPress(b, () => this.h.onWearHat(h));
+      onPress(b, () => this.h.onWearHat(h.key));
       grid.append(b);
+      this.hatButtons.set(h.key, b);
     }
     card.append(close, grid);
     this.hideOverlays();
     this.open('hats', t('hats'), card);
+    this.onEscape = () => this.hideOverlays();
     onPress(close, () => this.hideOverlays());
   }
 
-  toast(text, ms = 4000) {
-    this.toastEl.textContent = text;
-    this.toastEl.classList.remove('hidden');
-    clearTimeout(this.toastTimer);
-    this.toastTimer = setTimeout(() => this.toastEl.classList.add('hidden'), ms);
+  shakeHat(hat) {
+    this.shake(this.hatButtons?.get(hat));
+  }
+
+  /** A wordless toast: icons only, for rewards that need no explanation. */
+  toastIcon(html, ms = 2200) {
+    const b = el('div', { class: 'bubble reward-pop' }, html);
+    b.style.left = '50%';
+    b.style.top = '30%';
+    this.layer.append(b);
+    setTimeout(() => b.remove(), ms);
   }
 }

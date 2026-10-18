@@ -4,7 +4,8 @@ export const inPlayables = Boolean(yt && yt.IN_PLAYABLES_ENV);
 
 const SAVE_KEY = 'pet-rescue-progress-v1';
 const params = typeof location !== 'undefined' ? new URLSearchParams(location.search) : new URLSearchParams();
-// ?fakeads shows a stand-in ad outside YouTube for testing; ?fakeads=decline simulates a skipped reward.
+// ?fakeads shows a stand-in ad outside YouTube for testing; ?fakeads=decline simulates a skipped
+// reward and ?fakeads=nofill an ad that cannot be shown.
 const fakeAds = params.has('fakeads') ? params.get('fakeads') || 'accept' : null;
 
 function safe(fn, fallback) {
@@ -64,6 +65,26 @@ export async function language() {
   return navigator.language || 'en';
 }
 
+// Haptics are optional and can be switched off in the pause menu (a Playables requirement).
+export const canVibrate = typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function';
+let hapticsOn = true;
+
+export function setHaptics(on) {
+  hapticsOn = on;
+}
+
+/** A short haptic tap where the device and frame allow it; silently does nothing otherwise. */
+export function vibrate(pattern) {
+  if (hapticsOn && canVibrate) safe(() => navigator.vibrate(pattern));
+}
+
+/** Clipboard sharing is offered only where the browser exposes it. */
+export const canCopy = typeof navigator !== 'undefined' && Boolean(navigator.clipboard?.writeText) && (typeof window === 'undefined' || window.isSecureContext !== false);
+
+export async function copyText(text) {
+  await navigator.clipboard.writeText(text);
+}
+
 export function logError() {
   if (inPlayables) safe(() => yt.health.logError());
 }
@@ -87,6 +108,7 @@ export async function requestRewardedAd(rewardId) {
 }
 
 function fakeAd(kind) {
+  if (fakeAds === 'nofill') return Promise.reject(new Error('no fill (test)'));
   return new Promise((resolve) => {
     const box = document.createElement('div');
     box.className = 'fake-ad';

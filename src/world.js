@@ -218,6 +218,9 @@ export class World {
       ringMat: new MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.9, depthWrite: false }),
       tapMat: new MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.0, depthWrite: false }),
       beeDot: new MeshBasicMaterial({ color: 0x2a2230, transparent: true, opacity: 0.35, depthWrite: false }),
+      routeDot: new CircleGeometry(0.11, 12).rotateX(-Math.PI / 2),
+      routeMat: new MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.95, depthWrite: false }),
+      hintMat: new MeshBasicMaterial({ color: 0xffd84a, transparent: true, opacity: 0.95, depthWrite: false }),
     };
     this.props = new Map();
 
@@ -231,6 +234,11 @@ export class World {
     this.tapRing.renderOrder = 2;
     this.dynamic.add(this.tapRing);
     this.targetRings = [];
+    this.routeMarks = [];
+    // Animation speed: raised while the player taps ahead, so long slides can be skipped.
+    this.speed = 1;
+    // Which look (see VARIANT_TINTS) the caged pet has in this level.
+    this.petVariant = 0;
 
     this.raycaster = new Raycaster();
     this.groundPlane = new Plane(new Vector3(0, 1, 0), 0);
@@ -281,6 +289,10 @@ export class World {
   resize() {
     const w = window.innerWidth;
     const h = window.innerHeight;
+    // Android can report a 0×0 viewport before the first layout; wait for a real size.
+    if (w < 2 || h < 2) return;
+    this.sizeW = w;
+    this.sizeH = h;
     this.renderer.setSize(w, h, false);
     this.canvas.style.width = `${w}px`;
     this.canvas.style.height = `${h}px`;
@@ -291,6 +303,7 @@ export class World {
     if (!this.level) return;
     const W = window.innerWidth;
     const H = window.innerHeight;
+    if (W < 2 || H < 2) return;
     const { top, right, bottom, left } = this.insets;
     const availW = Math.max(80, W - left - right);
     const availH = Math.max(80, H - top - bottom);
@@ -542,6 +555,7 @@ export class World {
     this.tapRing.userData.t = 1;
     this.shared.tapMat.opacity = 0;
     this.targetRings = [];
+    this.routeMarks = [];
     this.followers = [];
 
     this.terrainObjs = new Map();
@@ -556,7 +570,7 @@ export class World {
     if (!state.rescued) {
       const cage = buildCage();
       cage.position.copy(this.pos(state.cage));
-      const pet = buildAnimal(state.pet);
+      const pet = buildAnimal(state.pet, this.petVariant);
       pet.scale.setScalar(0.95);
       pet.position.set(0, 0.08, 0);
       cage.add(pet);
@@ -695,7 +709,7 @@ export class World {
     if (state.active) kinds.push(state.active);
     if (state.rescued && !COMPANIONS.includes(state.pet)) kinds.push(state.pet);
     kinds.forEach((kind, k) => {
-      const mesh = kind === state.active ? this.companionMesh(kind) : buildAnimal(kind);
+      const mesh = kind === state.active ? this.companionMesh(kind) : buildAnimal(kind, kind === state.pet ? this.petVariant : 0);
       mesh.visible = true;
       mesh.scale.setScalar(1);
       const shadow = this.blobShadow(0.5);
@@ -751,6 +765,40 @@ export class World {
       this.dynamic.add(ring);
       return ring;
     });
+  }
+
+  /** Hint marks: dots along a route, and an optional golden ring on the key tile. */
+  showRoute(tiles, key = -1) {
+    this.clearRoute();
+    tiles.forEach((i, k) => {
+      const dot = new Mesh(this.shared.routeDot, this.shared.routeMat);
+      dot.position.copy(this.pos(i, this.tileY(this.state, i) + 0.05));
+      if (this.state.t[i] === '_') dot.position.y = 0.05;
+      dot.userData.phase = k * 0.35;
+      dot.renderOrder = 3;
+      this.dynamic.add(dot);
+      this.routeMarks.push(dot);
+    });
+    if (key >= 0) {
+      const ring = new Mesh(this.shared.ring, this.shared.hintMat);
+      ring.position.copy(this.pos(key, this.tileY(this.state, key) + 0.06));
+      if (this.state.t[key] === '_') ring.position.y = 0.06;
+      ring.userData.key = true;
+      ring.renderOrder = 3;
+      this.dynamic.add(ring);
+      this.routeMarks.push(ring);
+    }
+  }
+
+  newSelectionRing() {
+    const ring = new Mesh(this.shared.ring, this.shared.hintMat);
+    ring.renderOrder = 3;
+    return ring;
+  }
+
+  clearRoute() {
+    for (const m of this.routeMarks) this.dynamic.remove(m);
+    this.routeMarks = [];
   }
 
   tapAt(i) {
@@ -1061,7 +1109,7 @@ export class World {
       this.tweens = [];
       const keep = [];
       for (const tw of active) {
-        tw.t += dt;
+        tw.t += dt * this.speed;
         const k = Math.min(1, tw.t / tw.duration);
         tw.fn(tw.easing(k));
         if (k >= 1) tw.resolve();
@@ -1097,6 +1145,7 @@ export class World {
       const pulse = 0.5 + 0.5 * Math.sin(this.time * 4);
       this.shared.ringMat.opacity = 0.45 + 0.45 * pulse;
       for (const r of this.targetRings) r.scale.setScalar(0.9 + 0.12 * Math.sin(this.time * 4 + r.userData.phase));
+      for (const m of this.routeMarks) m.scale.setScalar(m.userData.key ? 1.15 + 0.2 * pulse : 0.85 + 0.25 * Math.max(0, Math.sin(this.time * 5 - m.userData.phase)));
       const tr = this.tapRing.userData;
       if (tr.t !== undefined && tr.t < 1) {
         tr.t += dt * 2.5;

@@ -3,6 +3,8 @@
   --paper: #fffaf0;
   --accent: #ffc83d;
   --accent-ink: #6b4a00;
+  /* Rewarded-ad buttons: their own colour, never the Next yellow. */
+  --ad: #c9b8ff;
   --danger: #e5474b;
   --shadow: 0 4px 0 rgba(42, 34, 48, 0.25), 0 8px 18px rgba(42, 34, 48, 0.18);
   --btn: 56px;
@@ -479,20 +481,60 @@ svg {
   animation: pulse 1.2s ease-in-out infinite;
 }
 
-.toast {
+/* Read by screen readers, never drawn. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Wordless notices: what happened, as a picture. */
+.notice {
   position: absolute;
   left: 50%;
-  top: calc(80px + var(--safe-top));
+  top: calc(84px + var(--safe-top));
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
   transform: translateX(-50%);
-  max-width: min(92vw, 420px);
-  padding: 10px 16px;
   border: 3px solid var(--ink);
-  border-radius: 16px;
+  border-radius: 22px;
   background: var(--paper);
   box-shadow: var(--shadow);
-  font-size: 15px;
-  line-height: 1.35;
-  text-align: center;
+  animation: notice 2.6s ease-out forwards;
+}
+
+.notice .p {
+  position: relative;
+  width: 52px;
+  height: 52px;
+}
+
+.notice .p.small {
+  width: 28px;
+  height: 28px;
+}
+
+.notice .cross {
+  position: absolute;
+  right: -8px;
+  bottom: -8px;
+  width: 28px;
+  height: 28px;
+}
+
+@keyframes notice {
+  0% { opacity: 0; transform: translate(-50%, -10px) scale(0.9); }
+  10% { opacity: 1; transform: translate(-50%, 0) scale(1); }
+  85% { opacity: 1; }
+  100% { opacity: 0; }
 }
 
 #fatal {
@@ -505,6 +547,20 @@ svg {
   font-size: 18px;
   text-align: center;
   background: var(--paper);
+}
+
+#fatal .fatal-icon {
+  position: relative;
+  width: 140px;
+  height: 140px;
+}
+
+#fatal .fatal-icon i {
+  position: absolute;
+  right: -10px;
+  bottom: -10px;
+  width: 60px;
+  height: 60px;
 }
 
 #fatal[hidden] {
@@ -669,6 +725,16 @@ svg {
   text-align: center;
 }
 
+.star-meter .moves small {
+  font-size: 12px;
+  font-weight: 700;
+  opacity: 0.6;
+}
+
+.star-meter .moves.over {
+  color: #b5462f;
+}
+
 .star-meter.lost {
   animation: shake 0.45s;
 }
@@ -678,20 +744,40 @@ svg {
   top: calc(80px + var(--safe-top));
   right: 10px;
   pointer-events: auto;
+}
+
+.btn.hint-btn {
+  position: absolute;
+  top: calc(80px + var(--safe-top));
+  left: 10px;
+  pointer-events: auto;
+  padding: 8px;
+}
+
+.btn.hint-btn.attention {
+  animation: attention 0.9s ease-in-out infinite;
   background: var(--accent);
 }
 
+.btn.ad {
+  background: var(--ad);
+}
+
+/* The video glyph marks everything that plays an ad. */
 .ad-badge {
   position: absolute;
-  right: -8px;
-  bottom: -6px;
-  padding: 1px 5px;
-  border: 2px solid var(--ink);
-  border-radius: 8px;
-  background: #fff;
-  color: var(--ink);
-  font: 800 11px/1.2 system-ui, sans-serif;
-  font-style: normal;
+  right: -9px;
+  bottom: -7px;
+  width: 28px;
+  height: 24px;
+  pointer-events: none;
+}
+
+.btn.round.small {
+  --btn: 44px;
+  width: 44px;
+  height: 44px;
+  padding: 9px;
 }
 
 .btn {
@@ -954,22 +1040,425 @@ svg {
   max-width: min(92vw, 380px);
 }
 
-.offer-icon {
-  position: relative;
+.offer-pict {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.offer-ad {
   width: 84px;
   height: 84px;
+  padding: 10px;
+  border: 4px solid var(--ink);
+  border-radius: 24px;
+  background: var(--ad);
+}
+
+.offer-arrow {
+  width: 40px;
+  height: 40px;
+  animation: dot 1.2s infinite;
+}
+
+.offer-icon {
+  position: relative;
+  width: 96px;
+  height: 96px;
   padding: 12px;
   border: 4px solid var(--ink);
   border-radius: 50%;
+  background: #fff;
+}
+
+.btn.pill.offer-btn {
+  width: 104px;
+  height: 64px;
+  justify-content: center;
+  padding: 10px 24px;
+}
+
+.btn.pill.offer-btn svg {
+  width: 40px;
+  height: 40px;
+}
+
+/* Tinted looks: the face with a soft wash of the look's colour and a coloured ring. */
+.tinted {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.tinted::after {
+  content: '';
+  position: absolute;
+  inset: 6%;
+  border: 3px solid var(--tint);
+  border-radius: 50%;
+  background: var(--tint);
+  mix-blend-mode: multiply;
+  opacity: 0.5;
+}
+
+.sparkle {
+  position: absolute;
+  right: -8px;
+  top: -8px;
+  width: 26px;
+  height: 26px;
+  animation: pulse 0.9s ease-in-out infinite;
+}
+
+/* New-element intro */
+.intro-card {
+  max-width: min(92vw, 380px);
+}
+
+.intro-badge {
+  width: 44px;
+  height: 44px;
+  margin-top: -6px;
+  animation: pulse 1s ease-in-out infinite;
+}
+
+.intro-icons {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.intro-icons .mech {
+  width: 96px;
+  height: 96px;
+  padding: 8px;
+  border: 4px solid var(--ink);
+  border-radius: 24px;
+  background: #fff;
+  animation: pop 0.45s cubic-bezier(0.3, 1.6, 0.6, 1) backwards;
+}
+
+.intro-icons .plus {
+  font-size: 30px;
+  font-weight: 900;
+}
+
+/* Win panel: goal bar, tease, world complete */
+.goal-progress {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: min(80vw, 260px);
+}
+
+.goal-progress .meter {
+  position: relative;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  flex: 1;
+  height: 14px;
+  border: 2px solid var(--ink);
+  border-radius: 8px;
+}
+
+.goal-progress .meter b {
+  width: 0;
+  transition: width 1.1s cubic-bezier(0.3, 1.2, 0.5, 1) 0.6s;
+}
+
+.goal-progress .goal-icon {
+  width: 42px;
+  height: 42px;
+  flex: none;
+  animation: bob 1.2s ease-in-out infinite;
+}
+
+.goal-progress small {
+  position: absolute;
+  left: 50%;
+  top: 100%;
+  transform: translateX(-60%);
+  font-size: 12px;
+  font-weight: 800;
+  opacity: 0.6;
+}
+
+.next-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.tease {
+  display: flex;
+  gap: 4px;
+  height: 52px;
+  padding: 6px;
+  border: 3px dashed var(--ink);
+  border-radius: 16px;
+  background: #fff;
+}
+
+.tease svg {
+  width: 40px;
+  height: 40px;
+}
+
+.world-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.world-done-icon,
+.world-next {
+  position: relative;
+  width: 76px;
+  height: 76px;
+}
+
+.world-done-icon .badge {
+  position: absolute;
+  right: -6px;
+  bottom: -6px;
+  width: 32px;
+  height: 32px;
+}
+
+.world-stars {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 54px;
+  font-weight: 800;
+}
+
+.world-stars svg {
+  width: 34px;
+  height: 34px;
+}
+
+.world-banner .arrow {
+  width: 32px;
+  height: 32px;
+}
+
+.reward b {
+  position: absolute;
+  right: -8px;
+  bottom: -8px;
+  min-width: 24px;
+  padding: 0 4px;
+  border: 2px solid var(--ink);
+  border-radius: 10px;
+  background: #fff;
+  font-size: 13px;
+  text-align: center;
+}
+
+.reward.used {
+  opacity: 0.75;
+  animation: none;
+}
+
+.reward .badge {
+  position: absolute;
+  left: -8px;
+  bottom: -8px;
+  width: 24px;
+  height: 24px;
+}
+
+/* Map: daily, weekly, encore */
+.extras {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.daily-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.daily-meta {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.chip {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 36px;
+  padding: 4px 10px 4px 6px;
+  border: 2px solid var(--ink);
+  border-radius: 999px;
+  background: #fff;
+  font-weight: 800;
+}
+
+.chip svg {
+  width: 26px;
+  height: 26px;
+}
+
+.daily .streak.fresh {
+  animation: bob 1.4s ease-in-out infinite;
+}
+
+.weekly,
+.encore {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  width: 100%;
+  height: 60px;
+  padding: 4px 12px;
+  border: 3px solid var(--ink);
+  border-radius: 20px;
+  background: #e6f4ff;
+  cursor: pointer;
+}
+
+.encore {
+  background: #efe8ff;
+  font-size: 20px;
+}
+
+.weekly .cal,
+.encore .cal,
+.encore .face {
+  width: 46px;
+  height: 46px;
+}
+
+.weekly .dots {
+  display: flex;
+  gap: 8px;
+}
+
+.weekly .dots i {
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--ink);
+  border-radius: 50%;
+  background: #fff;
+}
+
+.weekly .dots i.on {
   background: var(--accent);
 }
 
-.offer-text {
-  margin: 0;
-  font-size: 17px;
-  line-height: 1.4;
-  text-align: center;
+.weekly.locked {
+  border-style: dashed;
+  background: #e8e4dc;
 }
+
+.weekly .badge,
+.daily .badge {
+  position: absolute;
+  right: -6px;
+  top: -6px;
+  width: 30px;
+  height: 30px;
+  padding: 3px;
+  border: 2px solid var(--ink);
+  border-radius: 50%;
+  background: var(--paper);
+}
+
+.daily .badge.ad {
+  width: 34px !important;
+  padding: 2px !important;
+  background: var(--ad);
+}
+
+/* Calendar */
+.calendar-card {
+  width: min(94vw, 380px);
+}
+
+.cal-stats {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+}
+
+.cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+  width: 100%;
+}
+
+.cal-grid .day {
+  aspect-ratio: 1;
+  padding: 5px;
+  border: 2px dashed rgba(42, 34, 48, 0.35);
+  border-radius: 10px;
+  background: #fff;
+}
+
+.cal-grid .day.m-s {
+  border-style: solid;
+  border-color: var(--ink);
+  background: #fff3d6;
+}
+
+.cal-grid .day.m-f {
+  border-style: solid;
+  border-color: #3a8fd6;
+  background: #e6f4ff;
+}
+
+.cal-grid .day.today {
+  outline: 3px solid var(--ink);
+  outline-offset: 1px;
+}
+
+/* Bonus friend */
+.friends-card .row {
+  gap: 12px;
+}
+
+.friend-choice {
+  position: relative;
+  width: 84px;
+  height: 84px;
+  padding: 8px;
+  border: 3px solid var(--ink);
+  border-radius: 20px;
+  background: var(--ad);
+  cursor: pointer;
+}
+
+
+.bubble.reward-pop {
+  display: flex;
+  width: auto;
+  height: 72px;
+  margin: -36px 0 0 -60px;
+  padding: 8px 14px;
+  border-radius: 24px;
+  animation: bubble 2.2s ease-out forwards;
+}
+
+.bubble.reward-pop svg {
+  width: 52px;
+  height: 52px;
+}
+
 
 /* Garden */
 .garden-bar {
@@ -1024,6 +1513,92 @@ svg {
   max-height: 92vh;
   width: min(96vw, 460px);
   align-items: stretch;
+}
+
+.album-sets {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow-y: auto;
+  padding: 4px;
+}
+
+.album-set .album-grid {
+  overflow: visible;
+}
+
+.set-head {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  margin: 2px 6px;
+}
+
+.set-head.complete {
+  animation: bob 1.6s ease-in-out infinite;
+}
+
+.set-head .badge {
+  position: absolute;
+  right: -8px;
+  bottom: -6px;
+  width: 22px;
+  height: 22px;
+  padding: 2px;
+  border: 2px solid var(--ink);
+  border-radius: 50%;
+  background: #8fd36a;
+}
+
+.looks {
+  position: absolute;
+  left: 50%;
+  top: -7px;
+  display: flex;
+  gap: 3px;
+  transform: translateX(-50%);
+}
+
+.looks .look {
+  width: 10px;
+  height: 10px;
+  border: 2px solid var(--ink);
+  border-radius: 50%;
+  background: #fff;
+  opacity: 0.35;
+}
+
+.looks .look.on {
+  opacity: 1;
+  background: var(--tint, #fff);
+}
+
+.hat .need {
+  position: absolute;
+  left: 50%;
+  bottom: -9px;
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  height: 20px;
+  padding: 1px 5px 1px 2px;
+  transform: translateX(-50%);
+  border: 2px solid var(--ink);
+  border-radius: 10px;
+  background: #fff;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.hat .need svg {
+  width: 14px;
+  height: 14px;
+}
+
+.hat.locked .ad-badge {
+  right: -8px;
+  top: -8px;
+  bottom: auto;
 }
 
 .album-grid,
@@ -1129,4 +1704,10 @@ svg {
   .hud .middle {
     flex-direction: row;
   }
+}
+
+.hat.locked .badge {
+  left: -8px;
+  top: -8px;
+  bottom: auto;
 }
