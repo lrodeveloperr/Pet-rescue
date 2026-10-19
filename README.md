@@ -32,6 +32,7 @@ npm run build      # production build in dist/ plus a size report against the Pl
 npm test           # rules, level, progress, ad-cap and translation tests (Node)
 npm run smoke      # plays the production build in headless Chromium and saves screenshots/
 npm run audio-preview  # renders every sound offline, checks level/clipping, writes screenshots/audio-preview.wav
+npm run build:artifact       # the whole game as one self-contained HTML page (no YouTube SDK), for sharing outside YouTube
 node scripts/listing.mjs      # store thumbnails in four ratios into listing/ (after a build)
 node scripts/level-stats.mjs  # campaign statistics used by the audit
 node scripts/generate-levels.mjs  # regenerates worlds 1-6 and the daily pool (about an hour on 4 cores)

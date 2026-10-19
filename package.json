@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "test": "node --test test/*.test.js",
     "smoke": "node scripts/smoke.mjs",
-    "audio-preview": "node scripts/audio-preview.mjs"
+    "audio-preview": "node scripts/audio-preview.mjs",
+    "build:artifact": "node scripts/build-artifact.mjs"
   },
   "dependencies": {
     "three": "^0.186.1"
