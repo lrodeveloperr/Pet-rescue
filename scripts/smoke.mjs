@@ -73,7 +73,7 @@ async function autoplay(page) {
 const winPanel = (page) => page.waitForSelector('.overlay.win:not(.hidden)', { timeout: 8000 });
 const clickNext = async (page) => {
   await page.waitForTimeout(450); // Next ignores presses for 400 ms after the panel appears.
-  await page.click('.overlay.win .next-wrap .btn', { force: true });
+  await page.click('.overlay.win .btn.big', { force: true });
 };
 // The screen must stay textless: any visible text other than digits and a few signs fails.
 async function wordsOnScreen(page) {
@@ -106,7 +106,8 @@ try {
   await shot(page, '01-level1-portrait');
   await textless(page, 'level HUD');
   check(await page.evaluate(() => !document.querySelector('.hand').classList.contains('hidden')), 'tutorial hand is shown on level 1');
-  check(/\d+\/\d+/.test(await page.locator('.star-meter .moves').innerText()), 'star meter shows moves against par');
+  const hud = await page.evaluate(() => [...document.querySelectorAll('#ui button')].filter((b) => b.offsetParent && !b.closest('.overlay')).length);
+  check(hud === 1, `level 1 starts with only the menu button on screen (${hud} buttons)`);
 
   const lv = await page.evaluate(() => ({ cage: window.__petRescue.game.state.cage, exit: window.__petRescue.game.state.exit }));
   await tapTile(page, lv.cage);
@@ -120,15 +121,15 @@ try {
   await tapTile(page, lv.exit);
   await winPanel(page);
   check((await page.locator('.overlay.win .win-stars .s.on').count()) === 3, 'efficient first rescue earns three stars');
-  check((await page.locator('.overlay.win .goal-progress').count()) === 1, 'win panel shows a progress bar to the nearest goal');
-  check((await page.locator('.overlay.win .tease').count()) <= 1, 'win panel may tease what comes next');
+  const winButtons = await page.locator('.overlay.win .btn').count();
+  check(winButtons <= 4, `win panel is short: Next, replay, levels and at most one extra (${winButtons} buttons)`);
   await page.waitForTimeout(1800);
   await shot(page, '02-level1-win');
   await textless(page, 'win panel');
 
   // Next ignores an immediate press, then works.
   await page.evaluate(() => window.__petRescue.game.showWinAgain());
-  await page.click('.overlay.win .next-wrap .btn', { force: true });
+  await page.click('.overlay.win .btn.big', { force: true });
   check(await page.evaluate(() => window.__petRescue.game.index === 0), 'Next ignores a press in its first 400 ms');
   await clickNext(page);
   await page.waitForTimeout(400);
@@ -149,7 +150,7 @@ try {
   await page.mouse.up();
   await idle(page);
   check((await page.evaluate(() => window.__petRescue.game.history.length)) === 1, `swipe ${dir} on the canvas takes one step`);
-  await page.click('.hud .group .btn:first-child');
+  await page.click('.hud .group .btn:last-child');
   check((await page.evaluate(() => window.__petRescue.game.history.length)) === 0, 'undo button reverts the move');
 
   // Pause menu: music (and vibration where supported) but no master mute.
@@ -268,11 +269,11 @@ try {
   await page.evaluate(() => window.__petRescue.game.openMap(2));
   await page.waitForTimeout(400);
   check((await page.locator('.map-grid .node').count()) === 50, 'map shows the 50 levels of a world');
-  check((await page.locator('.tabs .tab').count()) >= 6, 'map shows the open worlds and a few locked ones');
+  check((await page.locator('.world-nav .world-here').count()) === 1, 'map shows one world at a time with arrows');
   check((await page.locator('.map-card .weekly').count()) === 1, 'map shows the weekly set');
   await shot(page, '07-map');
   await textless(page, 'map');
-  await page.click('.daily-meta .btn', { force: true });
+  await page.evaluate(() => window.__petRescue.game.openCalendar());
   await page.waitForTimeout(200);
   check((await page.locator('.cal-grid .day').count()) === 28, 'calendar shows four weeks of dailies');
   await textless(page, 'calendar');
@@ -326,14 +327,14 @@ try {
   await page.evaluate(() => window.__petRescue.game.toggleGardenEdit());
   await shot(page, '09-garden-hats');
 
-  await page.click('.garden-bar .btn:nth-child(3)', { force: true });
+  await page.click('.garden-bar .btn:nth-child(2)', { force: true });
   await page.waitForTimeout(300);
   check((await page.locator('.album-item').count()) === 32 && (await page.locator('.album-set').count()) === 6, 'album lists all 32 animals in six world sets');
-  check((await page.locator('.album-item .looks .look').count()) === 96, 'album shows three looks per animal');
+  check((await page.locator('.album-item:not(.missing) .looks .look').count()) === 3 * (await page.locator('.album-item:not(.missing)').count()), 'album shows three looks for each animal rescued');
   await shot(page, '10-album');
   await textless(page, 'album');
   await page.keyboard.press('Escape');
-  await page.click('.garden-bar .btn:nth-child(4)', { force: true });
+  await page.click('.garden-bar .btn:nth-child(3)', { force: true });
   await page.waitForTimeout(300);
   check((await page.locator('.hat').count()) === 16, 'hat picker lists 16 hats');
   check((await page.locator('.hat.locked .need').count()) === (await page.locator('.hat.locked').count()), 'every locked hat shows how it is earned');
@@ -458,6 +459,12 @@ try {
   await ads.evaluate(() => window.__petRescue.game.clearHint());
   await autoplay(ads);
   await winPanel(ads);
+  // The bonus friend is offered on every third win; make this one of them.
+  await ads.evaluate(() => {
+    const g = window.__petRescue.game;
+    while (g.completedCount() % 3) g.progress.stars[`pad-${g.completedCount()}`] = 1;
+    g.showWinAgain();
+  });
   const friendBtn = ads.locator('.overlay.win .btn.ad');
   check((await friendBtn.count()) === 1, 'win panel offers an opt-in bonus friend');
   await ads.waitForTimeout(450);
@@ -476,7 +483,7 @@ try {
   // Choose-your-hat: a specific locked star hat for an ad; streak hats cannot be bought.
   await ads.evaluate(() => window.__petRescue.game.openGarden());
   await ads.waitForTimeout(400);
-  await ads.click('.garden-bar .btn:nth-child(4)', { force: true });
+  await ads.click('.garden-bar .btn:nth-child(3)', { force: true });
   const target = await ads.evaluate(() => [...document.querySelectorAll('.hat.locked')].find((b) => b.querySelector('.ad-badge'))?.getAttribute('aria-label'));
   check(Boolean(target), 'locked star hats can be chosen with an ad');
   await ads.click('.hat.locked:has(.ad-badge)', { force: true });

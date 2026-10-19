@@ -48,19 +48,19 @@ node scripts/generate-levels.mjs --more  # adds worlds after the last one, up to
 | Move | Tap a tile to walk there; tap an obstacle to act on it; or swipe for one step. Tap during a long slide to speed it up | Arrow keys / WASD |
 | Wait (bees) | Tap the rescuer | Space |
 | Choose companion | Tap its face in the bar | 1–4 |
-| Hint | Light-bulb button (top left) | H |
-| Undo / restart | Top-right buttons | Z or Backspace / R |
+| Hint | Light-bulb button (appears after idle time) | H |
+| Undo / restart | Top-right button (restart appears when stuck, and is in the menu) | Z or Backspace / R |
 | Pause, levels, music, vibration | Top-left button | Esc or P (Esc also closes any dialog) |
 
 ## How the game stays textless
 
-No words appear on screen; digits do (moves, stars, streak days). Words exist only for screen readers, in English, Spanish, Portuguese, French and German.
+No words appear on screen, and the interface stays quiet: during play only the menu button, undo (once there is a move to undo) and the faces of companions already rescued are on screen. Words exist only for screen readers, in English, Spanish, Portuguese, French and German.
 
-- The objective strip shows the caged pet → home. The pet gets a heart once it is rescued, and the home starts bouncing. The star meter shows moves against par.
-- A bouncing pin marks the current goal. Pulsing rings mark obstacles the active companion can act on.
+- A bouncing pin over the cage, then over the house, shows the goal. Stars are shown when the level is won.
+- Pulsing rings mark obstacles the active companion can act on.
 - A blocked move shakes the rescuer. A bubble then shows what would help: the needed companion's face (its button pulses), a lock if it is not rescued yet, or a cross.
 - The first time a companion joins, and the first time a new element appears (currents, ice, gates, bridges, burrows, bees, or a new mix), a card plays a short animated story on a few tiles: the cause, then the effect (a boulder pushed into water becomes a stepping stone; one step onto ice slides you to the tree). Then the board rings the new element.
-- Hints are on request. After idle time the hint button pulses; it marks the key object, then shows the next moves, then the whole route. Tutorial levels show the hand by themselves. Hints come from a solver, so they are always valid.
+- Hints are on request. After idle time a hint bulb appears; it marks the key object, then shows the next moves, then the whole route. Tutorial levels show the hand by themselves. Hints come from a solver, so they are always valid.
 - If a move makes the level unwinnable, undo and restart light up and the hand points at undo.
 - Rewarded-ad offers are picture stories: a video plays (its bar fills), then the exact reward appears (the level skipped, the route drawn, the hat on your head). The ad button and the cross button look alike. Failures are picture stories too.
 

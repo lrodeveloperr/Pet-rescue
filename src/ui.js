@@ -1,5 +1,5 @@
 // HTML overlay: icon-only controls on top of the 3D canvas.
-import { face, silhouette, ability, UI, WORLD_ICONS, HAT_ICONS, MECH_ICONS } from './icons.js';
+import { face, UI, WORLD_ICONS, HAT_ICONS } from './icons.js';
 import { COMPANIONS, ABILITY } from './logic.js';
 import { VARIANT_TINTS } from './models.js';
 import { ABILITY_DEMOS, MECH_DEMOS, noticeScene, offerScene } from './demos.js';
@@ -82,18 +82,17 @@ export class Interface {
     this.h = handlers;
     root.innerHTML = '';
 
+    // The playing screen keeps only what play needs: the menu, undo and the companions you have.
+    // Restart appears when you are stuck, the hint bulb after idle time, the skip offer when due.
+    // The goal needs no strip: the pin over the cage, then over the house, shows it.
     this.top = el('div', { class: 'hud top' });
     this.btnPause = button('round', UI.pause, t('pause'));
-    const middle = el('div', { class: 'middle' });
-    this.goal = el('div', { class: 'goal', 'aria-hidden': 'true' });
-    this.starMeter = el('div', { class: 'star-meter', 'aria-hidden': 'true' });
-    middle.append(this.goal, this.starMeter);
     const right = el('div', { class: 'group' });
     this.btnUndo = button('round', UI.undo, t('undo'));
-    this.btnRestart = button('round', UI.restart, t('restart'));
-    right.append(this.btnUndo, this.btnRestart);
-    this.top.append(this.btnPause, middle, right);
-    this.btnHint = button('round hint-btn', UI.hint, t('hint'));
+    this.btnRestart = button('round hidden', UI.restart, t('restart'));
+    right.append(this.btnRestart, this.btnUndo);
+    this.top.append(this.btnPause, right);
+    this.btnHint = button('round hint-btn hidden', UI.hint, t('hint'));
     this.btnSkip = adButton('round skip hidden', UI.skip, t('skip'));
 
     this.bar = el('div', { class: 'bar', role: 'toolbar' });
@@ -147,6 +146,7 @@ export class Interface {
     }
     const top = this.top.getBoundingClientRect();
     const bar = this.bar.getBoundingClientRect();
+    if (!bar.width) return { top: top.bottom + 4, bottom: 12, right: 8, left: 8 };
     const vertical = bar.height > bar.width;
     return {
       top: top.bottom + 4,
@@ -158,52 +158,31 @@ export class Interface {
 
   // ---------- level HUD ----------
 
-  setGoal(pet, rescued) {
-    this.goal.innerHTML =
-      `<span class="goal-pet ${rescued ? 'done' : ''}">${face(pet)}${rescued ? `<i class="badge">${UI.heart}</i>` : `<i class="badge">${UI.lock}</i>`}</span>` +
-      `<span class="goal-arrow">${'<b></b>'.repeat(3)}</span>` +
-      `<span class="goal-home ${rescued ? 'next' : ''}">${UI.home}</span>`;
-  }
-
-  /** Three stars that drop away as the move count passes par; the target is shown as moves/par. */
-  setStars(stars, moves, par) {
-    const key = `${stars}|${moves}|${par}`;
-    if (this.starKey === key) return;
-    const lost = this.starCount !== undefined && stars < this.starCount && moves > 0;
-    this.starKey = key;
-    this.starCount = stars;
-    this.starMeter.innerHTML = `${starsHtml(stars)}<b class="moves ${moves > par ? 'over' : ''}">${moves}<small>/${par}</small></b>`;
-    if (lost) {
-      this.starMeter.classList.remove('lost');
-      void this.starMeter.offsetWidth;
-      this.starMeter.classList.add('lost');
-    }
-  }
-
   setSkip(show) {
     this.btnSkip.classList.toggle('hidden', !show);
     if (show) this.pulse(this.btnSkip);
   }
 
-  setHintAttention(on) {
-    this.btnHint.classList.toggle('attention', on);
+  /** The hint bulb: 'hidden', 'pulse' (offered after idle time) or 'shown' (while hinting). */
+  setHint(state) {
+    this.btnHint.classList.toggle('hidden', state === 'hidden');
+    this.btnHint.classList.toggle('attention', state === 'pulse');
   }
 
+  /** Only companions already rescued get a button: each is just a face; the active one is raised. */
   setCompanions(owned, active, { swimming = false } = {}) {
     for (const [kind, b] of this.companionButtons) {
       const has = owned.includes(kind);
-      b.classList.toggle('locked', !has);
+      b.hidden = !has;
       b.classList.toggle('active', has && kind === active);
       b.classList.toggle('unavailable', has && swimming && kind !== 'duck');
       b.setAttribute('aria-pressed', String(has && kind === active));
-      b.setAttribute('aria-label', has ? t(kind) : `${t(kind)} (${t('locked')})`);
-      const key = `${has}|${kind === active}`;
-      if (b.dataset.key === key) continue;
-      b.dataset.key = key;
-      b.innerHTML = has
-        ? `<span class="face">${face(kind)}</span><span class="ability">${ability(ABILITY[kind])}</span>`
-        : `<span class="face">${silhouette(kind)}</span><span class="ability lock">${UI.lock}</span>`;
+      if (has && !b.dataset.drawn) {
+        b.dataset.drawn = '1';
+        b.innerHTML = `<span class="face">${face(kind)}</span>`;
+      }
     }
+    this.bar.classList.toggle('empty', owned.length === 0);
   }
 
   flashCompanionGain(kind, from) {
@@ -247,11 +226,14 @@ export class Interface {
 
   setStuck(stuck) {
     this.btnUndo.classList.toggle('attention', stuck);
+    this.btnRestart.classList.toggle('hidden', !stuck);
     this.btnRestart.classList.toggle('attention', stuck);
   }
 
+  /** Undo shows only when there is a move to undo. */
   setUndoEnabled(v) {
     this.btnUndo.disabled = !v;
+    this.btnUndo.classList.toggle('hidden', !v);
   }
 
   /** Short-lived symbol near a tile: a red cross, a needed companion, a lock, a heart. */
@@ -325,11 +307,10 @@ export class Interface {
     const row = el('div', { class: 'row wrap' });
     const restart = button('round', UI.restart, t('restart'));
     const map = button('round', UI.map, t('map'));
-    const garden = button('round', UI.garden, t('garden'));
     // Only music can be switched off here; YouTube's own controls mute the game.
     const mus = button('round', music ? UI.musicOn : UI.musicOff, music ? t('musicOn') : t('musicOff'));
     mus.setAttribute('aria-pressed', String(music));
-    row.append(restart, map, garden, mus);
+    row.append(restart, map, mus);
     // Shown only where vibration works; the game uses short haptic taps on rescues and wins.
     if (haptics !== null) {
       const hap = button('round', haptics ? UI.vibrate : UI.vibrateOff, haptics ? t('hapticsOn') : t('hapticsOff'));
@@ -344,7 +325,6 @@ export class Interface {
     onPress(resume, () => this.h.onResume());
     onPress(restart, () => this.h.onRestart());
     onPress(map, () => this.h.onMap());
-    onPress(garden, () => this.h.onGarden());
     onPress(mus, () => this.h.onMusic());
     focusForKeyboard(resume);
   }
@@ -356,12 +336,8 @@ export class Interface {
   showIntro({ mechanics = [], abilities = [], onPlay }) {
     this.introArgs = { mechanics, abilities, onPlay };
     const card = el('div', { class: 'card intro-card' });
-    card.append(el('div', { class: 'intro-badge', 'aria-hidden': 'true' }, UI.sparkle));
-    const stories = [
-      ...abilities.map((a) => `<div class="story"><span class="mech small">${ability(a)}</span>${ABILITY_DEMOS[a]()}</div>`),
-      ...mechanics.map((m) => `<div class="story"><span class="mech small">${MECH_ICONS[m]}</span>${MECH_DEMOS[m]()}</div>`),
-    ];
-    card.append(el('div', { class: 'intro-stories', 'aria-hidden': 'true' }, stories.join('<b class="plus">+</b>')));
+    const stories = [...abilities.map((a) => ABILITY_DEMOS[a]()), ...mechanics.map((m) => MECH_DEMOS[m]())].map((d) => `<div class="story">${d}</div>`);
+    card.append(el('div', { class: 'intro-stories', 'aria-hidden': 'true' }, stories.join('')));
     const play = button('big primary', UI.play, t('play'));
     card.append(play);
     this.hideOverlays();
@@ -376,6 +352,11 @@ export class Interface {
     if (this.introArgs) this.showIntro(this.introArgs);
   }
 
+  /**
+   * The win panel: the stars and the rescued pet, then one big Next. Extras appear only when
+   * there is something to show: what was just earned, a goal that is nearly reached, today's
+   * daily, or an optional bonus friend.
+   */
   showWin(w) {
     const card = el('div', { class: `card win-card ${w.worldDone ? 'world-done' : ''}` });
     if (w.worldDone) {
@@ -384,52 +365,48 @@ export class Interface {
         el(
           'div',
           { class: 'world-banner', role: 'img', 'aria-label': t('worldDone') },
-          `<span class="world-done-icon">${WORLD_ICONS[d.key]}<b class="wnum">${d.number}</b><i class="badge ok">${UI.done}</i></span><span class="world-stars">${UI.star}<b>${d.stars}/${d.max}</b></span>` +
-            (d.next ? `<span class="arrow">${UI.arrow}</span><span class="world-next">${WORLD_ICONS[d.next]}<i class="sparkle">${UI.sparkle}</i></span>` : ''),
+          `<span class="world-done-icon">${WORLD_ICONS[d.key]}<i class="badge ok">${UI.done}</i></span>` +
+            (d.next ? `<span class="arrow">${UI.arrow}</span><span class="world-next">${WORLD_ICONS[d.next]}</span>` : ''),
         ),
       );
-    } else {
-      card.append(el('div', { class: 'win-stars', role: 'img', 'aria-label': `${w.stars} ${t('stars')}` }, starsHtml(w.stars)));
     }
-    card.append(
-      el(
-        'div',
-        { class: 'hero', 'aria-hidden': 'true' },
-        `<span class="hearts">${UI.heart}${UI.heart}${UI.heart}</span><span class="hero-face">${lookFace(w.pet, w.variant)}${w.newLook ? `<i class="sparkle">${UI.sparkle}</i>` : ''}</span><span class="hero-home">${UI.home}</span>`,
-      ),
-    );
-    if (w.gained) {
-      card.append(el('div', { class: 'gain', 'aria-hidden': 'true' }, `<span class="plus">+</span><span class="gain-face">${face(w.gained)}</span><span class="gain-ability ${ABILITY[w.gained]}">${ability(ABILITY[w.gained])}</span>`));
-    }
+    card.append(el('div', { class: 'win-stars', role: 'img', 'aria-label': `${w.stars} ${t('stars')}` }, starsHtml(w.stars)));
+    card.append(el('div', { class: 'hero', 'aria-hidden': 'true' }, `<span class="hero-face">${lookFace(w.pet, w.variant)}</span>`));
+
+    // What this win earned, if anything.
     const rewards = [];
-    if (w.streak) {
-      rewards.push(`<span class="reward streak">${UI.flame}<b>${w.streak.n}</b></span>`);
-      if (w.streak.froze) rewards.push(`<span class="reward used">${UI.freeze}<b>−${w.streak.froze}</b></span>`);
-      if (w.streak.earnedFreeze) rewards.push(`<span class="reward new">${UI.freeze}<b>+1</b></span>`);
-    }
+    if (w.gained) rewards.push(`<span class="reward new">${face(w.gained)}</span>`);
+    if (w.streak) rewards.push(`<span class="reward streak">${UI.flame}<b>${w.streak.n}</b></span>`);
+    if (w.streak?.earnedFreeze) rewards.push(`<span class="reward new">${UI.freeze}</span>`);
     for (const h of w.hats ?? []) rewards.push(`<span class="reward new">${HAT_ICONS[h]}</span>`);
     if (w.decoration) rewards.push(`<span class="reward new">${UI.garden}</span>`);
-    for (const s of w.souvenirs ?? []) rewards.push(`<span class="reward new">${WORLD_ICONS[s]}<i class="badge ok">${UI.album}</i></span>`);
-    if (w.newLook) rewards.push(`<span class="reward new">${UI.album}<i class="sparkle">${UI.sparkle}</i></span>`);
+    for (const s of w.souvenirs ?? []) rewards.push(`<span class="reward new">${WORLD_ICONS[s]}</span>`);
+    if (w.newLook) rewards.push(`<span class="reward new">${UI.album}</span>`);
     if (rewards.length) card.append(el('div', { class: 'rewards', 'aria-hidden': 'true' }, rewards.join('')));
 
-    // The nearest goal, as a bar that fills from where it was before this win.
-    if (w.goal) {
-      const g = w.goal;
-      const bar = el(
-        'div',
-        { class: 'goal-progress', role: 'img', 'aria-label': `${g.value}/${g.target}` },
-        `<i class="meter"><b style="width:${Math.round(Math.min(1, g.from) * 100)}%"></b></i><span class="goal-icon">${g.icon}</span><small>${g.value}/${g.target}</small>`,
-      );
+    // A goal close to being reached: its icon and a bar filling from where it stood before.
+    const g = w.goal;
+    if (!rewards.length && g && g.to >= 0.5 && g.to < 1) {
+      const bar = el('div', { class: 'goal-progress', role: 'img', 'aria-label': `${g.value}/${g.target}` }, `<i class="meter"><b style="width:${Math.round(g.from * 100)}%"></b></i><span class="goal-icon">${g.icon}</span>`);
       card.append(bar);
-      requestAnimationFrame(() => requestAnimationFrame(() => (bar.querySelector('.meter b').style.width = `${Math.round(Math.min(1, g.to) * 100)}%`)));
+      requestAnimationFrame(() => requestAnimationFrame(() => (bar.querySelector('.meter b').style.width = `${Math.round(g.to * 100)}%`)));
     }
 
-    const row = el('div', { class: 'row wrap' });
+    let next = null;
+    if (w.hasNext) {
+      next = button('big primary pulse-forever', UI.play, w.worldDone?.next ? t('nextWorld') : t('next'));
+      card.append(next);
+      onPress(next, () => this.h.onNext(), { guard: PRESS_GUARD_MS });
+    }
+    const row = el('div', { class: 'row' });
     const replay = button('round', UI.restart, t('restart'));
     const map = button('round', UI.map, t('map'));
-    const garden = button(`round ${w.worldDone ? 'primary pulse-forever' : ''}`, UI.garden, t('garden'));
-    row.append(replay, map, garden);
+    row.append(replay, map);
+    if (w.worldDone) {
+      const garden = button('round primary', UI.garden, t('garden'));
+      row.append(garden);
+      onPress(garden, () => this.h.onGarden());
+    }
     if (w.dailyReady) {
       const daily = button('round daily-ready pulse-forever', UI.calendar, t('daily'));
       row.append(daily);
@@ -445,106 +422,69 @@ export class Interface {
       row.append(friend);
       onPress(friend, () => this.h.onFriend(), { guard: PRESS_GUARD_MS });
     }
-    let next = null;
-    if (w.hasNext) {
-      const label = w.worldDone?.next ? t('nextWorld') : t('next');
-      next = button('big primary pulse-forever', w.tease ? `${UI.play}` : UI.play, label);
-      const wrap = el('div', { class: 'next-wrap' });
-      wrap.append(next);
-      if (w.tease) wrap.append(el('div', { class: `tease ${w.tease.kind}`, 'aria-hidden': 'true' }, w.tease.html));
-      card.append(wrap);
-      onPress(next, () => this.h.onNext(), { guard: PRESS_GUARD_MS });
-    }
     card.append(row);
     this.hideOverlays();
     this.open('win', w.worldDone ? t('worldDone') : t('next'), card);
     this.onEscape = () => this.h.onMap();
     onPress(replay, () => this.h.onRestart());
     onPress(map, () => this.h.onMap());
-    onPress(garden, () => this.h.onGarden());
     if (next) setTimeout(() => focusForKeyboard(next), 50);
   }
 
-  showMap({ worlds, world, levels, daily, weekly, encore, totalStars }) {
+  /**
+   * The level map: today's puzzle (and the week's), one world at a time with arrows, and its
+   * levels. Locked levels are blank tiles; played ones show their pet and stars.
+   */
+  showMap({ worlds, world, levels, daily, weekly, encore }) {
     const card = el('div', { class: 'card map-card' });
     const head = el('div', { class: 'map-head' });
     const close = button('round', UI.back, t('back'));
-    const total = el('div', { class: 'total-stars', role: 'img', 'aria-label': `${totalStars} ${t('stars')}` }, `${UI.star}<b>${totalStars}</b>`);
     const garden = button('round', UI.garden, t('garden'));
-    head.append(close, total, garden);
+    head.append(close, garden);
     card.append(head);
 
-    // Daily puzzle card: calendar, today's pet, the streak flame, best streak and freezes.
     const extras = el('div', { class: 'extras' });
-    const dailyBtn = el(
-      'button',
-      { class: `daily ${daily.unlocked ? '' : 'locked'} ${daily.doneToday ? 'done' : ''}`, type: 'button', 'aria-label': `${t('daily')}, ${t('streak')} ${daily.streak}` },
-      `<span class="cal">${UI.calendar}</span><span class="face">${daily.unlocked ? face(daily.pet) : silhouette(daily.pet)}</span>` +
-        `<span class="streak ${daily.streak ? '' : 'fresh'}">${UI.flame}<b>${daily.streak}</b></span>` +
-        (daily.unlocked ? (daily.doneToday ? (daily.canBonus ? `<i class="badge ad">${UI.video}</i>` : `<i class="badge ok">${UI.check}</i>`) : '') : `<i class="badge">${UI.lock}</i>`),
-    );
-    if (!daily.unlocked || (daily.doneToday && !daily.canBonus)) dailyBtn.disabled = true;
-    else onPress(dailyBtn, () => this.h.onDaily());
-    const meta = el('div', { class: 'daily-meta' });
-    if (daily.best > daily.streak) meta.append(el('span', { class: 'chip', role: 'img', 'aria-label': `${t('best')} ${daily.best}` }, `${UI.trophy}<b>${daily.best}</b>`));
-    if (daily.freezes) meta.append(el('span', { class: 'chip', role: 'img', 'aria-label': `${t('freezes')} ${daily.freezes}` }, `${UI.freeze}<b>${daily.freezes}</b>`));
-    if (daily.doneToday) {
-      const left = el('span', { class: 'chip countdown', role: 'timer', 'aria-label': t('nextPuzzle') }, `${UI.clock}<b></b>`);
-      const tick = () => (left.querySelector('b').textContent = clock(daily.nextAt - Date.now()));
-      tick();
-      clearInterval(this.countdownTimer);
-      this.countdownTimer = setInterval(tick, 20000);
-      meta.append(left);
-    }
-    const cal = button('round small', UI.calendar, t('calendar'));
-    if (!daily.unlocked) cal.disabled = true;
-    else onPress(cal, () => this.h.onCalendar());
-    meta.append(cal);
-    const dailyWrap = el('div', { class: 'daily-wrap' });
-    dailyWrap.append(dailyBtn, meta);
-    extras.append(dailyWrap);
-
-    if (weekly) {
-      const allDone = weekly.done >= weekly.total;
-      const dots = Array.from({ length: weekly.total }, (_, k) => `<i class="${k < weekly.done ? 'on' : ''}"></i>`).join('');
-      const wk = el(
+    if (daily.unlocked) {
+      // Not played today: tap to play. Played: tap for the calendar (streak, history, countdown).
+      const dailyBtn = el(
         'button',
-        { class: `weekly ${weekly.unlocked ? '' : 'locked'} ${allDone ? 'done' : ''}`, type: 'button', 'aria-label': `${t('weekly')} ${weekly.done}/${weekly.total}` },
-        `<span class="cal">${UI.weekly}</span><span class="dots">${dots}</span>${weekly.unlocked ? (allDone ? `<i class="badge ok">${UI.check}</i>` : '') : `<i class="badge">${UI.lock}</i>`}`,
+        { class: `daily ${daily.doneToday ? 'done' : ''}`, type: 'button', 'aria-label': `${t('daily')}, ${t('streak')} ${daily.streak}` },
+        `<span class="cal">${UI.calendar}</span><span class="face">${daily.doneToday ? UI.check : face(daily.pet)}</span>` +
+          (daily.streak ? `<span class="streak">${UI.flame}<b>${daily.streak}</b></span>` : ''),
       );
-      if (!weekly.unlocked || allDone) wk.disabled = true;
-      else onPress(wk, () => this.h.onWeekly());
+      onPress(dailyBtn, () => (daily.doneToday ? this.h.onCalendar() : this.h.onDaily()));
+      extras.append(dailyBtn);
+    }
+    if (weekly?.unlocked && weekly.done < weekly.total) {
+      const dots = Array.from({ length: weekly.total }, (_, k) => `<i class="${k < weekly.done ? 'on' : ''}"></i>`).join('');
+      const wk = el('button', { class: 'weekly', type: 'button', 'aria-label': `${t('weekly')} ${weekly.done}/${weekly.total}` }, `<span class="cal">${UI.weekly}</span><span class="dots">${dots}</span>`);
+      onPress(wk, () => this.h.onWeekly());
       extras.append(wk);
     }
     if (encore) {
-      const en = el('button', { class: 'encore', type: 'button', 'aria-label': `${t('encore')} ${encore.count}` }, `<span class="cal">${UI.encore}</span><span class="face">${face(encore.pet)}</span><b>${encore.count}</b>`);
+      const en = el('button', { class: 'encore', type: 'button', 'aria-label': `${t('encore')} ${encore.count}` }, `<span class="cal">${UI.encore}</span><span class="face">${face(encore.pet)}</span>`);
       onPress(en, () => this.h.onEncore());
       extras.append(en);
     }
-    card.append(extras);
+    if (extras.children.length) card.append(extras);
 
-    // A scrolling strip of worlds: every open world, then a few locked ones as a preview.
-    const tabs = el('div', { class: 'tabs', role: 'tablist' });
-    const lastOpen = worlds.reduce((a, w, i) => (w.locked ? a : i), 0);
-    worlds.slice(0, Math.max(6, lastOpen + 4)).forEach((w, i) => {
-      const tab = el(
-        'button',
-        { class: `tab ${i === world ? 'on' : ''} ${w.locked ? 'locked' : ''}`, type: 'button', role: 'tab', 'aria-selected': String(i === world), 'aria-label': `${t('world')} ${i + 1}: ${t(`w_${w.key}`)}` },
-        `${WORLD_ICONS[w.key]}<b class="wnum">${i + 1}</b>${w.locked ? `<i class="badge">${UI.lock}</i>` : `<i class="meter"><b style="width:${Math.round((w.stars / w.max) * 100)}%"></b></i>`}`,
-      );
-      if (w.locked) tab.disabled = true;
-      else onPress(tab, () => this.h.onWorld(i));
-      tabs.append(tab);
-    });
-    card.append(tabs);
+    // One world at a time: arrows step to the neighbouring open worlds.
+    const nav = el('div', { class: 'world-nav' });
+    const prev = button('round small', UI.back, t('back'));
+    const nextW = button('round small flip', UI.back, t('nextWorld'));
+    const here = el('div', { class: 'world-here', role: 'img', 'aria-label': `${t('world')} ${world + 1}: ${t(`w_${worlds[world].key}`)}` }, WORLD_ICONS[worlds[world].key]);
+    prev.disabled = world === 0;
+    nextW.disabled = world >= worlds.length - 1 || worlds[world + 1].locked;
+    nav.append(prev, here, nextW);
+    onPress(prev, () => this.h.onWorld(world - 1));
+    onPress(nextW, () => this.h.onWorld(world + 1));
+    card.append(nav);
 
     const grid = el('div', { class: 'map-grid' });
     levels.forEach((lv, k) => {
       const label = `${t('level')} ${k + 1}${lv.locked ? ` (${t('locked')})` : `, ${lv.stars} ${t('stars')}`}`;
       const cls = ['node', lv.done ? 'done' : '', lv.locked ? 'locked' : '', lv.current ? 'current' : ''].join(' ');
-      const inner = lv.locked
-        ? `<span class="face">${silhouette(lv.pet)}</span><i class="badge">${UI.lock}</i>`
-        : `<span class="face">${face(lv.pet)}</span><span class="mini-stars">${starsHtml(lv.stars)}</span><b class="num">${k + 1}</b>`;
+      const inner = lv.locked ? '' : `<span class="face">${face(lv.pet)}</span>${lv.done ? `<span class="mini-stars">${starsHtml(lv.stars)}</span>` : ''}`;
       const b = el('button', { class: cls, type: 'button', 'aria-label': label }, inner);
       if (lv.locked) b.disabled = true;
       else onPress(b, () => this.h.onLevel(k));
@@ -559,12 +499,10 @@ export class Interface {
     // Bring the current or next level into view.
     const target = grid.querySelector('.current') ?? [...grid.querySelectorAll('.node:not(.locked)')].pop();
     target?.scrollIntoView({ block: 'center' });
-    const tab = tabs.querySelector('.tab.on');
-    if (tab) tabs.scrollLeft = tab.offsetLeft - tabs.clientWidth / 2 + tab.clientWidth / 2;
   }
 
   /** The last four weeks of dailies: solved, frozen or missed, with streak, best and freezes. */
-  showCalendar({ cells, streak, best, freezes, nextAt, onClose }) {
+  showCalendar({ cells, streak, best, freezes, nextAt, canBonus = false, onBonus, onClose }) {
     const card = el('div', { class: 'card calendar-card' });
     const close = button('round', UI.back, t('back'));
     const stats = el(
@@ -578,6 +516,11 @@ export class Interface {
       grid.append(el('div', { class: `day ${c.mark ? `m-${c.mark}` : ''} ${c.today ? 'today' : ''}`, role: 'listitem', 'aria-label': `${c.key}${c.mark === 's' ? ' ✓' : c.mark === 'f' ? ' ❄' : ''}` }, icon));
     }
     card.append(close, stats, grid);
+    if (canBonus) {
+      const bonus = adButton('round', UI.calendar, t('offerBonus'));
+      card.append(bonus);
+      onPress(bonus, () => onBonus(), { guard: PRESS_GUARD_MS });
+    }
     this.hideOverlays();
     this.open('calendar', t('calendar'), card);
     this.onEscape = () => onClose();
@@ -640,14 +583,7 @@ export class Interface {
     const hats = button('round', UI.hats, t('hats'));
     const move = button(`round ${editing ? 'primary' : ''}`, UI.move, t('move'));
     move.setAttribute('aria-pressed', String(Boolean(editing)));
-    const progress = el('div', { class: 'deco-progress', role: 'img', 'aria-label': next ? `${stars}/${next.stars} ${t('stars')}` : `${stars} ${t('stars')}` });
-    if (next) {
-      const pct = Math.min(100, Math.round((stars / next.stars) * 100));
-      progress.innerHTML = `${UI.star}<i class="meter"><b style="width:${pct}%"></b></i><span class="next-deco">${UI.garden}</span>`;
-    } else {
-      progress.innerHTML = `${UI.star}<b>${stars}</b>`;
-    }
-    this.gardenBar.append(back, progress, album, hats, move);
+    this.gardenBar.append(back, album, hats, move);
     onPress(back, () => this.h.onLeaveGarden());
     onPress(album, () => this.h.onAlbum());
     onPress(hats, () => this.h.onHats());
@@ -670,7 +606,7 @@ export class Interface {
           el(
             'div',
             { class: `album-item ${has ? '' : 'missing'}`, role: 'img', 'aria-label': has ? `${animalName(a.kind)} ×${a.count}, ${t('look')} ${looksHad}/${a.looks.length}` : t('locked') },
-            `<span class="face">${has ? face(a.kind) : silhouette(a.kind)}</span>${a.owned ? `<i class="badge">${ability(ABILITY[a.kind])}</i>` : ''}${a.count ? `<b class="count">×${a.count}</b>` : ''}<span class="looks">${looks}</span>`,
+            `<span class="face">${has ? face(a.kind) : ''}</span>${has ? `<span class="looks">${looks}</span>` : ''}`,
           ),
         );
       }
@@ -703,7 +639,7 @@ export class Interface {
           'aria-label': `${t(`h_${h.key}`)}${h.unlocked ? '' : ` (${t('locked')}: ${needLabel}${adable ? `, ${t('mystery')}` : ''})`}`,
           'aria-pressed': String(worn === h.key),
         },
-        `${HAT_ICONS[h.key]}${h.unlocked ? '' : `<span class="need">${need}</span>${adable ? `<i class="ad-badge">${UI.video}</i>` : `<i class="badge">${UI.lock}</i>`}`}${worn === h.key ? `<i class="badge ok">${UI.check}</i>` : ''}`,
+        `${HAT_ICONS[h.key]}${h.unlocked ? '' : adable ? `<i class="ad-badge">${UI.video}</i>` : `<span class="need">${need}</span>`}`,
       );
       onPress(b, () => this.h.onWearHat(h.key));
       grid.append(b);

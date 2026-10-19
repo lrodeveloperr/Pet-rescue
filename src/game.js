@@ -1,5 +1,5 @@
 // Game controller: connects rules, 3D world, interface, audio, ads and the host SDK.
-import { LEVELS, WORLDS, DAILY, WORLD_MECHANIC, THEMES, isLoaded, loadWorld, worldLevels } from './levels.js';
+import { LEVELS, WORLDS, DAILY, THEMES, isLoaded, loadWorld, worldLevels } from './levels.js';
 import {
   ABILITY,
   COMPANIONS,
@@ -14,7 +14,7 @@ import {
   solve,
   step,
 } from './logic.js';
-import { face, ability, silhouette, UI, HAT_ICONS, MECH_ICONS, WORLD_ICONS } from './icons.js';
+import { face, ability, UI, HAT_ICONS, WORLD_ICONS } from './icons.js';
 import { ALL_ANIMALS, WORLD_FRIENDS } from './species.js';
 import { HATS } from './models.js';
 import { Ads, AD_POLICY } from './ads.js';
@@ -150,7 +150,6 @@ export class Game {
     this.menuPaused = false;
     this.hostPaused = false;
     this.pendingTap = null;
-    this.goalKey = '';
     this.mode = 'level';
     this.mapWorld = 0;
     this.extra = null; // { kind: 'daily' | 'weekly' | 'encore', def, n }
@@ -297,7 +296,6 @@ export class Game {
     this.pendingSelect = null;
     this.menuPaused = false;
     this.timers.release('menu');
-    this.goalKey = '';
     this.hintStage = 0;
     this.hintMax = 0;
     this.routeBought = false;
@@ -308,7 +306,7 @@ export class Game {
     this.ui.setStuck(false);
     this.ui.setMode('level');
     this.ui.setSkip(false);
-    this.ui.setHintAttention(false);
+    this.ui.setHint('hidden');
     this.world.petVariant = variant;
     this.world.loadLevel(this.level, this.state, world);
     this.world.setInsets(this.ui.insets());
@@ -383,13 +381,7 @@ export class Game {
   refresh() {
     const s = this.state;
     this.ui.setCompanions(s.owned, s.active, { swimming: isWater(s.t[s.p]) });
-    const goalKey = `${s.pet}|${s.rescued}`;
-    if (goalKey !== this.goalKey) {
-      this.goalKey = goalKey;
-      this.ui.setGoal(s.pet, s.rescued);
-    }
     this.ui.setUndoEnabled(this.history.length > 0);
-    this.ui.setStars(starsFor(s.turn, this.def.par), s.turn, this.def.par);
     this.world.setTargets(this.targets());
   }
 
@@ -780,7 +772,7 @@ export class Game {
     this.timers.clear('skip');
     this.timers.clear('idle');
     this.ui.setSkip(false);
-    this.ui.setHintAttention(false);
+    this.ui.setHint('hidden');
     this.audio.play('win');
     host.vibrate([25, 40, 25]);
     // Everyone cheers: the rescued pet first, then the companion.
@@ -851,7 +843,6 @@ export class Game {
       streak,
       worldDone,
       goal: this.nearestGoal(starsBefore, starsAfter),
-      tease: this.tease(),
     };
     // The full escape and reunion play before anything else appears.
     setTimeout(() => {
@@ -870,7 +861,8 @@ export class Game {
       ...(again ? { gained: null, hats: [], decoration: false, souvenirs: [], newLook: false } : {}),
       hasNext,
       dailyReady: this.dailyUnlocked && this.progress.daily.last !== dayKey() && kind !== 'daily',
-      canFriend: !this.friendOffered && !kind && this.index >= 5 && this.ads.rewardedAvailable && this.friendChoices().length > 0,
+      // Offered on every third win only, so the panel stays quiet.
+      canFriend: !this.friendOffered && !kind && this.index >= 5 && this.completedCount() % 3 === 0 && this.ads.rewardedAvailable && this.friendChoices().length > 0,
       canShare: kind === 'daily' && this.extra.n === 0 && host.canCopy,
     });
   }
@@ -917,18 +909,6 @@ export class Game {
 
   fill({ prev, next }, before, after) {
     return { from: Math.max(0, (before - prev) / (next - prev)), to: (after - prev) / (next - prev), value: after, target: next };
-  }
-
-  /** What comes next: a new world, a new element, or a new animal. */
-  tease() {
-    if (this.extra || this.index >= LEVELS.length - 1) return null;
-    const next = LEVELS[this.index + 1];
-    if (next.worldIndex !== this.def.worldIndex) return { html: WORLD_ICONS[next.theme] + (WORLD_MECHANIC[next.theme] ? MECH_ICONS[WORLD_MECHANIC[next.theme]] : ''), kind: 'world' };
-    if (!isLoaded(this.index + 1)) return null;
-    const fresh = mechanicsOf(next).filter((m) => !this.progress.seen.includes(m));
-    if (next.intro?.length || fresh.length) return { html: (next.intro?.length ? next.intro : fresh).map((m) => MECH_ICONS[m]).join(''), kind: 'element' };
-    if (!this.progress.rescued[next.pet] && !this.progress.owned.includes(next.pet)) return { html: silhouette(next.pet), kind: 'animal' };
-    return null;
   }
 
   completeSets() {
@@ -1172,7 +1152,16 @@ export class Game {
   openCalendar() {
     this.audio.play('ui');
     const info = this.dailyInfo();
-    this.ui.showCalendar({ cells: dailyCalendar(this.progress), streak: info.streak, best: info.best, freezes: info.freezes, nextAt: info.nextAt, onClose: () => this.openMap() });
+    this.ui.showCalendar({
+      cells: dailyCalendar(this.progress),
+      streak: info.streak,
+      best: info.best,
+      freezes: info.freezes,
+      nextAt: info.nextAt,
+      canBonus: info.canBonus,
+      onBonus: () => this.ui.showOffer({ kind: 'bonus', text: t('offerBonus'), onAccept: () => this.watchForBonus(), onDecline: () => this.openCalendar() }),
+      onClose: () => this.openMap(),
+    });
   }
 
   chooseLevel(k) {
@@ -1187,8 +1176,8 @@ export class Game {
       this.startDaily(0);
       return;
     }
-    if (!info.canBonus) return;
-    this.ui.showOffer({ kind: 'bonus', text: t('offerBonus'), onAccept: () => this.watchForBonus(), onDecline: () => this.openMap() });
+    // Played today: the calendar shows the streak and, when available, a bonus puzzle.
+    this.openCalendar();
   }
 
   async watchForBonus() {
@@ -1446,7 +1435,7 @@ export class Game {
     this.timers.clear('hint');
     this.timers.clear('idle');
     this.ui.hideHand();
-    this.ui.setHintAttention(false);
+    this.ui.setHint('hidden');
     this.world.clearRoute();
   }
 
@@ -1457,7 +1446,7 @@ export class Game {
       () => {
         if (this.busy || this.inputBlocked) return;
         if (this.tutorial) this.showHintStage(2, solve(this.state, { maxNodes: 150000 }), { auto: true });
-        else this.ui.setHintAttention(true);
+        else this.ui.setHint('pulse');
       },
       ms,
     );
@@ -1467,7 +1456,7 @@ export class Game {
   requestHint() {
     this.audio.unlock();
     if (this.inputBlocked || this.busy) return;
-    this.ui.setHintAttention(false);
+    this.ui.setHint('shown');
     this.timers.clear('idle');
     const r = solve(this.state, { maxNodes: 150000 });
     // Once the whole route is unlocked for this level, every press shows it.

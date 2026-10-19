@@ -2154,3 +2154,68 @@ svg {
   line-height: 18px;
   text-align: center;
 }
+
+/* ---------- Quiet interface: only what the moment needs ---------- */
+
+.bar.empty,
+.companion[hidden] {
+  display: none;
+}
+
+.companion .face {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.world-nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+}
+
+.world-here {
+  width: 64px;
+  height: 64px;
+}
+
+.btn.flip svg {
+  transform: scaleX(-1);
+}
+
+.btn:disabled.small {
+  opacity: 0.25;
+}
+
+.map-card .node.locked {
+  background: rgba(42, 34, 48, 0.06);
+  border-style: dashed;
+  border-color: rgba(42, 34, 48, 0.25);
+}
+
+.daily .face svg {
+  width: 100%;
+  height: 100%;
+}
+
+.daily.done .face {
+  color: #3f8f52;
+}
+
+.calendar-card > .btn.ad {
+  align-self: center;
+}
+
+.album-item.missing {
+  background: rgba(42, 34, 48, 0.05);
+}
+
+.win-card .hero {
+  justify-content: center;
+}
+
+.win-card .hero-face {
+  width: 96px;
+  height: 96px;
+}

@@ -26,7 +26,8 @@ The whole game is textless on screen, not only the core loop. Every screen uses 
 - **Rewarded offers** are stories: a video screen (lavender, the colour used only for ads) plays and its bar fills, an arrow pulses, and the exact reward pops out: this level's caged pet jumped over to the next level, the route drawn on a little board, the rescuer wearing the chosen hat, the calendar with +1, or the chosen animal. Accept (the video glyph) and decline (a cross) have the same shape and colour. Declining returns straight to play.
 - **Notices** are stories too: a video stopped half-way → a crossed-out gift (the ad was closed early, so no reward), a crossed-out video (no ad available), and a crossed-out cloud (progress could not be saved or loaded; play continues). The save notice appears at most once per session.
 - **The no-WebGL screen** is a crossed-out cube.
-- **Numbers** (moves and par, star totals, streak days, the countdown to the next daily, rescue counts) are digits. Digits are not tied to a language.
+- **Few icons** (user direction, 19 October 2026): during play only the menu, undo (once there is a move to undo) and the rescued companions' faces are on screen; restart appears when the player is stuck, the hint bulb after idle time, and the skip offer when due. The win panel shows stars, the rescued pet and Next, with replay and levels, and extras only when there is something new. The map shows one world at a time; locked levels are blank tiles.
+- **Numbers** appear only where they mean something: the streak count and the calendar's countdown. Digits are not tied to a language.
 
 Words exist only for assistive technology: accessible names for every control, animal, hat and puzzle element, and the full wording of each offer and notice in a screen-reader live region (en, es, pt, fr, de).
 
