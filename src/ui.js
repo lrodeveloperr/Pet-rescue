@@ -42,6 +42,26 @@ function clock(ms) {
   return `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}`;
 }
 
+/**
+ * Sizes a grid so all `count` cells fit its box with no scrolling: tries every column count and
+ * keeps the one that gives the largest square cells (or uses `cols` when the layout fixes it).
+ */
+function fitGrid(grid, count, { cols: fixed = 0 } = {}) {
+  const W = grid.clientWidth;
+  const H = grid.clientHeight;
+  if (!W || !H) return;
+  const gap = Math.round(Math.max(4, Math.min(12, Math.min(W, H) / 50)));
+  let best = { size: 0, cols: 1 };
+  for (let cols = fixed || 1; cols <= (fixed || count); cols++) {
+    const rows = Math.ceil(count / cols);
+    const size = Math.min((W - gap * (cols - 1)) / cols, (H - gap * (rows - 1)) / rows);
+    if (size > best.size) best = { size, cols };
+  }
+  grid.style.setProperty('--cell', `${Math.floor(Math.min(best.size, 120))}px`);
+  grid.style.setProperty('--gap', `${gap}px`);
+  grid.style.gridTemplateColumns = `repeat(${best.cols}, var(--cell))`;
+}
+
 // Move focus into dialogs only for keyboard players, so touch players see no focus ring.
 let keyboardUser = false;
 window.addEventListener('keydown', () => (keyboardUser = true), true);
@@ -276,7 +296,20 @@ export class Interface {
     return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
   }
 
+  /** Re-sizes the grids of the open panel, after a resize or rotation. */
+  refit() {
+    for (const f of this.fitters ?? []) f();
+  }
+
+  /** Fits a panel's grid now and whenever the screen changes. */
+  fit(grid, count, opts) {
+    const f = () => fitGrid(grid, count, opts);
+    (this.fitters ??= []).push(f);
+    requestAnimationFrame(f);
+  }
+
   hideOverlays() {
+    this.fitters = [];
     for (const o of Object.values(this.overlays)) o.classList.add('hidden');
     clearInterval(this.countdownTimer);
     this.onEscape = null;
@@ -436,12 +469,13 @@ export class Interface {
    * levels. Locked levels are blank tiles; played ones show their pet and stars.
    */
   showMap({ worlds, world, levels, daily, weekly, encore }) {
-    const card = el('div', { class: 'card map-card' });
+    const card = el('div', { class: 'card panel map-card' });
+    const side = el('div', { class: 'side' });
     const head = el('div', { class: 'map-head' });
     const close = button('round', UI.back, t('back'));
     const garden = button('round', UI.garden, t('garden'));
     head.append(close, garden);
-    card.append(head);
+    side.append(head);
 
     const extras = el('div', { class: 'extras' });
     if (daily.unlocked) {
@@ -466,7 +500,7 @@ export class Interface {
       onPress(en, () => this.h.onEncore());
       extras.append(en);
     }
-    if (extras.children.length) card.append(extras);
+    if (extras.children.length) side.append(extras);
 
     // One world at a time: arrows step to the neighbouring open worlds.
     const nav = el('div', { class: 'world-nav' });
@@ -478,9 +512,10 @@ export class Interface {
     nav.append(prev, here, nextW);
     onPress(prev, () => this.h.onWorld(world - 1));
     onPress(nextW, () => this.h.onWorld(world + 1));
-    card.append(nav);
+    side.append(nav);
+    card.append(side);
 
-    const grid = el('div', { class: 'map-grid' });
+    const grid = el('div', { class: 'fit map-grid' });
     levels.forEach((lv, k) => {
       const label = `${t('level')} ${k + 1}${lv.locked ? ` (${t('locked')})` : `, ${lv.stars} ${t('stars')}`}`;
       const cls = ['node', lv.done ? 'done' : '', lv.locked ? 'locked' : '', lv.current ? 'current' : ''].join(' ');
@@ -493,36 +528,37 @@ export class Interface {
     card.append(grid);
     this.hideOverlays();
     this.open('map', t('map'), card);
+    this.fit(grid, levels.length);
     this.onEscape = () => this.h.onCloseMap();
     onPress(close, () => this.h.onCloseMap());
     onPress(garden, () => this.h.onGarden());
-    // Bring the current or next level into view.
-    const target = grid.querySelector('.current') ?? [...grid.querySelectorAll('.node:not(.locked)')].pop();
-    target?.scrollIntoView({ block: 'center' });
   }
 
   /** The last four weeks of dailies: solved, frozen or missed, with streak, best and freezes. */
   showCalendar({ cells, streak, best, freezes, nextAt, canBonus = false, onBonus, onClose }) {
-    const card = el('div', { class: 'card calendar-card' });
+    const card = el('div', { class: 'card panel calendar-card' });
+    const side = el('div', { class: 'side' });
     const close = button('round', UI.back, t('back'));
     const stats = el(
       'div',
       { class: 'cal-stats', 'aria-hidden': 'true' },
       `<span class="chip">${UI.flame}<b>${streak}</b></span><span class="chip">${UI.trophy}<b>${best}</b></span><span class="chip">${UI.freeze}<b>${freezes}</b></span><span class="chip">${UI.clock}<b>${clock(nextAt - Date.now())}</b></span>`,
     );
-    const grid = el('div', { class: 'cal-grid', role: 'list' });
+    const grid = el('div', { class: 'fit cal-grid', role: 'list' });
     for (const c of cells) {
       const icon = c.mark === 's' ? UI.star : c.mark === 'f' ? UI.freeze : '';
       grid.append(el('div', { class: `day ${c.mark ? `m-${c.mark}` : ''} ${c.today ? 'today' : ''}`, role: 'listitem', 'aria-label': `${c.key}${c.mark === 's' ? ' ✓' : c.mark === 'f' ? ' ❄' : ''}` }, icon));
     }
-    card.append(close, stats, grid);
+    side.append(close, stats);
     if (canBonus) {
       const bonus = adButton('round', UI.calendar, t('offerBonus'));
-      card.append(bonus);
+      side.append(bonus);
       onPress(bonus, () => onBonus(), { guard: PRESS_GUARD_MS });
     }
+    card.append(side, grid);
     this.hideOverlays();
     this.open('calendar', t('calendar'), card);
+    this.fit(grid, cells.length, { cols: 7 });
     this.onEscape = () => onClose();
     onPress(close, () => onClose());
   }
@@ -592,12 +628,15 @@ export class Interface {
 
   /** The album, grouped by world; a complete set shows its souvenir. */
   showAlbum(sets) {
-    const card = el('div', { class: 'card album-card' });
+    const card = el('div', { class: 'card panel album-card' });
+    const side = el('div', { class: 'side' });
     const close = button('round', UI.back, t('back'));
-    const list = el('div', { class: 'album-sets' });
+    side.append(close);
+    const grid = el('div', { class: 'fit album-grid' });
+    let count = 0;
     for (const set of sets) {
-      const head = el('div', { class: `set-head ${set.complete ? 'complete' : ''}`, role: 'img', 'aria-label': `${t(`w_${set.key}`)}${set.complete ? ' ✓' : ''}` }, `${WORLD_ICONS[set.key]}${set.complete ? `<i class="badge ok">${UI.check}</i>` : ''}`);
-      const grid = el('div', { class: 'album-grid' });
+      grid.append(el('div', { class: `set-head ${set.complete ? 'complete' : ''}`, role: 'img', 'aria-label': `${t(`w_${set.key}`)}${set.complete ? ' ✓' : ''}` }, WORLD_ICONS[set.key]));
+      count++;
       for (const a of set.animals) {
         const has = a.count > 0 || a.owned;
         const looks = a.looks.map((on, v) => `<i class="look v${v} ${on ? 'on' : ''}" ${v ? `style="--tint:${tintHex(v)}"` : ''}></i>`).join('');
@@ -609,23 +648,24 @@ export class Interface {
             `<span class="face">${has ? face(a.kind) : ''}</span>${has ? `<span class="looks">${looks}</span>` : ''}`,
           ),
         );
+        count++;
       }
-      const section = el('section', { class: 'album-set' });
-      section.append(head, grid);
-      list.append(section);
     }
-    card.append(close, list);
+    card.append(side, grid);
     this.hideOverlays();
     this.open('album', t('album'), card);
+    this.fit(grid, count);
     this.onEscape = () => this.hideOverlays();
     onPress(close, () => this.hideOverlays());
   }
 
   /** Hats with how each locked one is earned; star hats can also be chosen with an ad. */
   showHats({ hats, worn, fresh = null, canAd = false }) {
-    const card = el('div', { class: 'card hats-card' });
+    const card = el('div', { class: 'card panel hats-card' });
+    const side = el('div', { class: 'side' });
     const close = button('round', UI.back, t('back'));
-    const grid = el('div', { class: 'hat-grid' });
+    side.append(close);
+    const grid = el('div', { class: 'fit hat-grid' });
     this.hatButtons = new Map();
     for (const h of hats) {
       const need = h.need ? (h.need.stars !== undefined ? `${UI.star}<b>${h.need.stars}</b>` : `${UI.flame}<b>${h.need.streak}</b>`) : '';
@@ -645,9 +685,10 @@ export class Interface {
       grid.append(b);
       this.hatButtons.set(h.key, b);
     }
-    card.append(close, grid);
+    card.append(side, grid);
     this.hideOverlays();
     this.open('hats', t('hats'), card);
+    this.fit(grid, hats.length);
     this.onEscape = () => this.hideOverlays();
     onPress(close, () => this.hideOverlays());
   }

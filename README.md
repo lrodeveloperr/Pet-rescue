@@ -31,6 +31,7 @@ npm run dev        # local development server
 npm run build      # production build in dist/ plus a size report against the Playables limits
 npm test           # rules, level, progress, ad-cap and translation tests (Node)
 npm run smoke      # plays the production build in headless Chromium and saves screenshots/
+npm run fit        # opens every screen at 14 sizes (small phone to ultrawide) and fails if anything overflows or scrolls
 npm run audio-preview  # renders every sound offline, checks level/clipping, writes screenshots/audio-preview.wav
 npm run build:artifact       # the whole game as one self-contained HTML page (no YouTube SDK), for sharing outside YouTube
 node scripts/listing.mjs      # store thumbnails in four ratios into listing/ (after a build)
@@ -56,6 +57,7 @@ node scripts/generate-levels.mjs --more  # adds worlds after the last one, up to
 
 No words appear on screen, and the interface stays quiet: during play only the menu button, undo (once there is a move to undo) and the faces of companions already rescued are on screen. Words exist only for screen readers, in English, Spanish, Portuguese, French and German.
 
+- Every screen fits the display at any size and orientation, with nothing to scroll: the board fills the space between the controls, and the map, album, hats and calendar size their grids to the screen (controls along the top in portrait, down the side in landscape). `npm run fit` checks 14 sizes from a 320-pixel phone to a 2560-pixel ultrawide.
 - A bouncing pin over the cage, then over the house, shows the goal. Stars are shown when the level is won.
 - Pulsing rings mark obstacles the active companion can act on.
 - A blocked move shakes the rescuer. A bubble then shows what would help: the needed companion's face (its button pulses), a lock if it is not rescued yet, or a cross.

@@ -138,6 +138,7 @@ async function boot() {
     world.resize();
     world.setInsets(ui.insets());
     ui.hideHand();
+    ui.refit();
     game.onResize();
   };
   window.addEventListener('resize', onResize);

@@ -329,7 +329,7 @@ try {
 
   await page.click('.garden-bar .btn:nth-child(2)', { force: true });
   await page.waitForTimeout(300);
-  check((await page.locator('.album-item').count()) === 32 && (await page.locator('.album-set').count()) === 6, 'album lists all 32 animals in six world sets');
+  check((await page.locator('.album-item').count()) === 32 && (await page.locator('.album-grid .set-head').count()) === 6, 'album lists all 32 animals in six world sets');
   check((await page.locator('.album-item:not(.missing) .looks .look').count()) === 3 * (await page.locator('.album-item:not(.missing)').count()), 'album shows three looks for each animal rescued');
   await shot(page, '10-album');
   await textless(page, 'album');

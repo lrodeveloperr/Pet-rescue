@@ -10,7 +10,8 @@
     "test": "node --test test/*.test.js",
     "smoke": "node scripts/smoke.mjs",
     "audio-preview": "node scripts/audio-preview.mjs",
-    "build:artifact": "node scripts/build-artifact.mjs"
+    "build:artifact": "node scripts/build-artifact.mjs",
+    "fit": "node scripts/fit-check.mjs"
   },
   "dependencies": {
     "three": "^0.186.1"
