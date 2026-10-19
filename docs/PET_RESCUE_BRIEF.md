@@ -1,6 +1,6 @@
 # Pet Rescue: Borrow & Escape
 
-Status: brief, 18 October 2026, with a playable build (see the README): 5,000 campaign levels in 100 worlds, 403 daily puzzles, engagement systems and capped ads. Working title. The build has automated rule, level and browser tests only: no player testing, real-device measurement, upload or certification. Rendering engine: three.js (see Graphics engine and size budget).
+Status: brief, 18 October 2026, with a playable build (see the README): 2,550 campaign levels in 51 worlds, 403 daily puzzles, engagement systems and capped ads. Working title. The build has automated rule, level and browser tests only: no player testing, real-device measurement, upload or certification. Rendering engine: three.js (see Graphics engine and size budget).
 
 ## Product promise
 
@@ -49,7 +49,7 @@ Revised the same day after the engagement audit:
 
 - **Level generator v2:** each level features specific companions and requires exactly those; obstacles the solution never touches are stripped; difficulty is scored structurally (dead positions, irreversible actions, required switches, a limited-search agent); each world is curated as a sawtooth of 10-level segments that add a new mechanic mix, with two forced lesson levels opening each world. The 33–39-move hand-made levels moved to the daily pool.
 - **Weekly sets and encore:** five puzzles a week, and an endless encore track after the last level.
-- **5,000 levels (user decision, 18 October 2026):** the campaign grew to 100 worlds of 50, so that the game has no practical end. Measured trade-off: shipping a level costs about 34 bytes compressed (5,000 levels ≈ 170 KB, about 1% of the 15 MiB budget), while generating levels on the phone with the full quality checks takes from a quarter of a second to 15 seconds per level on one server core, more on a budget phone. Worlds 7–100 cycle through the six themes, mixing each theme's mechanic with others on boards and companion needs that grow; each is a separate file loaded only when the player gets near it.
+- **A campaign with no practical end (user decision, 18–19 October 2026):** the plan was 5,000 levels in 100 worlds; generation was stopped at 51 worlds (2,550 levels) as enough for a start, and `node scripts/generate-levels.mjs --more` adds the next worlds when wanted. Measured trade-off: shipping a level costs about 34 bytes compressed (5,000 levels ≈ 170 KB, about 1% of the 15 MiB budget), while generating levels on the phone with the full quality checks takes from a quarter of a second to 15 seconds per level on one server core, more on a budget phone. Worlds 7–51 cycle through the six themes, mixing each theme's mechanic with others on boards and companion needs that grow (62% of their levels need two or more companions); each is a separate file of about 2 KB compressed, loaded only when the player gets near it. Their par stays near 14 moves throughout, so later worlds are not measurably longer; difficulty comes from mixes, board size and companion needs.
 
 ## Advertising boundaries
 
@@ -132,7 +132,7 @@ The main risk is selection friction: too many capabilities, unclear affordances 
 The build implements:
 
 - the core loop with four companions (puppy push, frog hop, duck swim, mole dig);
-- 100 worlds of 50 levels (5,000), a daily pool of more than a year, weekly sets and an encore track;
+- 51 worlds of 50 levels (2,550), a daily pool of more than a year, weekly sets and an encore track;
 - 32 rescuable animals in three looks;
 - stars, daily streaks with freezes, a pet garden, an album and hats;
 - staged hints, new-element intro cards and a world-complete moment;

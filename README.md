@@ -10,7 +10,7 @@
 
 Rescue a caged pet, then lead it home. Each rescued companion lends one ability while it leads: the puppy pushes boulders (into ponds and gaps to make crossings), the frog hops one-tile gaps, the duck swims, and the mole digs through hedges. You cannot switch companion while swimming, which drives the later puzzles.
 
-**Status:** a complete build: 5,000 campaign levels in 100 worlds, a separate daily puzzle pool of more than a year, weekly sets and an endless encore, 32 animals in three looks, 16 hats, a pet garden and capped ads. It has not been uploaded, certified, tested on real phones or tested with players.
+**Status:** a complete build: 2,550 campaign levels in 51 worlds, a separate daily puzzle pool of more than a year, weekly sets and an endless encore, 32 animals in three looks, 16 hats, a pet garden and capped ads. It has not been uploaded, certified, tested on real phones or tested with players.
 
 <p>
   <img src="docs/screenshots/push-story.png" width="200" alt="The puppy's first rescue plays a story: a boulder pushed into water becomes a stepping stone">
@@ -34,7 +34,8 @@ npm run smoke      # plays the production build in headless Chromium and saves s
 npm run audio-preview  # renders every sound offline, checks level/clipping, writes screenshots/audio-preview.wav
 node scripts/listing.mjs      # store thumbnails in four ratios into listing/ (after a build)
 node scripts/level-stats.mjs  # campaign statistics used by the audit
-node scripts/generate-levels.mjs  # regenerates src/levels/campaign.js (about an hour on 4 cores)
+node scripts/generate-levels.mjs  # regenerates worlds 1-6 and the daily pool (about an hour on 4 cores)
+node scripts/generate-levels.mjs --more  # adds worlds after the last one, up to 100 (2-12 minutes per world; resumable)
 ```
 
 `dist/` is the folder to zip and upload. The browser scripts need a Chromium; they use `/opt/pw-browsers/chromium` by default or the path in `CHROMIUM_PATH`.
@@ -86,7 +87,7 @@ Every sound is synthesized at runtime with the Web Audio API (`src/sound.js`, `s
 
 ## Size and performance
 
-- The production build is about 225 KB gzipped, against the 15 MiB initial-bundle target. All models are generated in code from primitives, and all sound and music are synthesized, so the game ships no asset files.
+- The game downloads about 225 KB gzipped before it starts, against the 15 MiB initial-bundle target. Worlds 7 onward are separate files of about 2 KB each (83 KB for all 45), loaded only when the player gets near them. All models are generated in code from primitives, and all sound and music are synthesized, so the game ships no asset files.
 - Each character is merged into one vertex-coloured mesh. Ground and trees are instanced.
 - The renderer caps pixel ratio at 2 and lowers it automatically if frames run slower than 45 fps.
 

@@ -25,7 +25,7 @@ Rescue caged pets, borrow their abilities, and lead everyone home. A one-finger 
 
 Every rescued animal joins you and lends you a skill: the puppy pushes boulders, the frog hops gaps, the duck swims and the mole digs. Choose the right friend at the right moment to free the next pet and get everyone home.
 
-- 5,000 puzzles across 100 worlds in six settings: meadow, river, snow, farm, canyon and woods, each with its own twist (currents, ice, gates, crumbling bridges, burrows and bees) and ever-new mixes of them.
+- More than 2,500 puzzles across 51 worlds in six settings: meadow, river, snow, farm, canyon and woods, each with its own twist (currents, ice, gates, crumbling bridges, burrows and bees) and ever-new mixes of them.
 - A new puzzle every day, the same for everyone, plus a weekly set and an endless encore after the campaign.
 - Undo any move, ask for a hint, and play at your own pace.
 - Collect 32 animals in three looks each, fill your album, decorate your garden and dress up with 16 hats.

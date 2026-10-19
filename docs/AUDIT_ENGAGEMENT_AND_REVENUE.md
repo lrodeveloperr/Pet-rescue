@@ -68,6 +68,8 @@ Across all 300 levels:
 - Par still rises only modestly within each world. Difficulty now comes from structure (companions needed, switches, dead positions) rather than length, so par alone understates it; only a playtest can confirm the sawtooth feels right.
 - The daily pool has 403 puzzles (average par 14.6), including the three long hand-made levels.
 
+Worlds 7–51 were added on 18–19 October 2026 (2,250 more levels, 2,550 in all), generated with the same checks and loaded on demand. 62% of their levels need two or more companions, the dead-position share stays within its cap (10% on average, 30% at most), and par stays near 14 moves throughout.
+
 ## Scorecard
 
 Status values:

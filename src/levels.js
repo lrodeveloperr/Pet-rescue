@@ -1,5 +1,5 @@
-// The campaign: 100 worlds of 50 levels, plus the daily-puzzle pool. Levels are generated and
-// solver-verified by scripts/generate-levels.mjs.
+// The campaign: worlds of 50 levels (51 so far; the generator can add more), plus the
+// daily-puzzle pool. Levels are generated and solver-verified by scripts/generate-levels.mjs.
 // Worlds 1-6 (and the daily pool) ship in the main bundle. Worlds 7 onward are one small file
 // each, loaded only when the player gets near them, so startup stays as fast as with 300 levels.
 import { WORLDS as FIRST, DAILY } from './levels/campaign.js';
